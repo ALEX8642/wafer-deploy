@@ -27,9 +27,10 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field
 
 from serve import metrics as M
+from wafer_deploy.calibration import CalibrationMonitor
 from wafer_deploy.config import DeployConfig
 from wafer_deploy.drift import DriftMonitors
-from wafer_deploy.labels import LABELS
+from wafer_deploy.labels import LABELS, NUM_LABELS
 from wafer_deploy.predictor import Predictor
 from wafer_deploy.snapshot import load_snapshot
 
@@ -51,6 +52,20 @@ class PredictResponse(BaseModel):
     latency_ms: float
 
 
+class FeedbackRequest(BaseModel):
+    labels: list[list[int]] = Field(
+        ..., description="Delayed ground-truth multi-hot vectors, each of length "
+                         "NUM_LABELS in the canonical label order, FIFO-matched to "
+                         "previously served /predict calls. This is the "
+                         "delayed-label channel that feeds the calibration monitor.")
+
+
+class FeedbackResponse(BaseModel):
+    windows_scored: int               # calibration windows completed by this batch
+    pending_labels: int               # served predictions still awaiting a label
+    latest: dict | None               # newest scored window's ECE / alarm, if any
+
+
 def create_app(cfg: DeployConfig | None = None) -> FastAPI:
     cfg = cfg or DeployConfig.load()
 
@@ -64,9 +79,11 @@ def create_app(cfg: DeployConfig | None = None) -> FastAPI:
             app.state.predictor = None
             app.state.load_error = f"{type(exc).__name__}: {exc}"
             M.UP.set(0)
-        # Build the Phase 1 drift monitors from the committed reference snapshot.
+        # Build the drift monitors from the committed reference snapshot.
         # Independent of the checkpoint: the snapshot alone parameterises them,
-        # though they are only *fed* once /predict starts producing embeddings.
+        # though they are only *fed* once /predict starts producing embeddings
+        # (Phase 1: covariate + prediction) or /feedback delivers delayed labels
+        # (Phase 2: calibration).
         try:
             snap = load_snapshot(cfg.reference_snapshot_path)
             app.state.monitors = DriftMonitors.from_snapshot(
@@ -76,8 +93,17 @@ def create_app(cfg: DeployConfig | None = None) -> FastAPI:
                 psi_threshold=cfg.drift_psi_threshold, seed=cfg.seed)
             M.init_drift_gauges(app.state.monitors.covariate.threshold,
                                 cfg.drift_psi_threshold)
+            app.state.calibration = CalibrationMonitor.from_snapshot(
+                snap, LABELS, window_size=cfg.drift_window_size,
+                n_bins=cfg.calibration_n_bins,
+                ece_quantile=cfg.calibration_ece_quantile,
+                calib_trials=cfg.calibration_calib_trials,
+                max_pending=cfg.calibration_max_pending, seed=cfg.seed)
+            M.init_calibration_gauges(app.state.calibration.threshold,
+                                      app.state.calibration.reference_ece_mean)
         except Exception as exc:  # no reference → serving still fine, no monitors
             app.state.monitors = None
+            app.state.calibration = None
             app.state.monitor_error = f"{type(exc).__name__}: {exc}"
         yield
 
@@ -85,6 +111,7 @@ def create_app(cfg: DeployConfig | None = None) -> FastAPI:
     app.state.predictor = None
     app.state.load_error = None
     app.state.monitors = None
+    app.state.calibration = None
     app.state.monitor_error = None
     app.state.monitor_lock = threading.Lock()
     app.state.cfg = cfg
@@ -103,7 +130,8 @@ def create_app(cfg: DeployConfig | None = None) -> FastAPI:
         loaded = p is not None
         M.REQUESTS.labels(endpoint="/healthz", http_status="200").inc()
         body = {"status": "ok" if loaded else "degraded", "model_loaded": loaded,
-                "monitors_active": app.state.monitors is not None}
+                "monitors_active": app.state.monitors is not None,
+                "calibration_active": app.state.calibration is not None}
         if loaded:
             body["checkpoint"] = p.checkpoint_meta
         else:
@@ -142,17 +170,28 @@ def create_app(cfg: DeployConfig | None = None) -> FastAPI:
             M.PREDICTED_LABELS.labels(label=name).inc()
         M.REQUESTS.labels(endpoint="/predict", http_status="200").inc()
 
-        # Feed the unsupervised drift monitors. Serving runs sync endpoints in a
-        # threadpool, so guard the (stateful, bounded) window buffers with a lock;
-        # gauges reflect only completed windows, so most requests just buffer.
+        # Feed the monitors. Serving runs sync endpoints in a threadpool, so guard
+        # the (stateful, bounded) window buffers with a lock; gauges reflect only
+        # completed windows, so most requests just buffer. The unsupervised
+        # monitors score here; the calibration monitor only *buffers* the served
+        # probs — it is scored later, when the delayed labels arrive at /feedback.
         monitors = app.state.monitors
-        if monitors is not None:
+        calibration = app.state.calibration
+        cov_results, pred_results = [], []
+        if monitors is not None or calibration is not None:
             with app.state.monitor_lock:
-                cov_results, pred_results = monitors.observe(res.embeddings, res.preds)
-            for r in cov_results:
-                M.record_covariate(r)
-            for r in pred_results:
-                M.record_prediction(r)
+                if monitors is not None:
+                    cov_results, pred_results = monitors.observe(
+                        res.embeddings, res.preds)
+                if calibration is not None:
+                    dropped = calibration.buffer_predictions(res.probs)
+                    M.CALIBRATION_PENDING_LABELS.set(calibration.pending_labels)
+                    if dropped:
+                        M.CALIBRATION_DROPPED.inc(dropped)
+        for r in cov_results:
+            M.record_covariate(r)
+        for r in pred_results:
+            M.record_prediction(r)
 
         return PredictResponse(
             labels=list(LABELS),
@@ -161,6 +200,58 @@ def create_app(cfg: DeployConfig | None = None) -> FastAPI:
             predicted_labels=active,
             is_normal=len(active) == 0,
             latency_ms=dt * 1e3,
+        )
+
+    @app.post("/feedback", response_model=FeedbackResponse)
+    def feedback(req: FeedbackRequest) -> FeedbackResponse:
+        """Deliver delayed ground-truth labels for previously served predictions.
+
+        Labels are FIFO-matched to earlier /predict calls; the calibration
+        monitor scores a window (ECE vs the frozen reference) once that window's
+        labels have all arrived. This is the delayed-label channel — in
+        production labels lag inference, so the calibration signal necessarily
+        trails the unsupervised ones.
+        """
+        cal = app.state.calibration
+        if cal is None:
+            raise HTTPException(
+                status_code=503,
+                detail="calibration monitor not active (no reference snapshot)")
+        try:
+            arr = np.asarray(req.labels, dtype=np.int64)
+        except ValueError:
+            arr = np.asarray([], dtype=np.int64)  # ragged → fail validation below
+        if arr.ndim != 2 or arr.shape[1] != NUM_LABELS:
+            M.REQUESTS.labels(endpoint="/feedback", http_status="422").inc()
+            raise HTTPException(
+                status_code=422,
+                detail=f"each label vector must be length {NUM_LABELS} "
+                       "(multi-hot, canonical label order)")
+
+        with app.state.monitor_lock:
+            try:
+                results = cal.add_labels(arr)
+            except ValueError as exc:  # label with no matching served prediction
+                M.REQUESTS.labels(endpoint="/feedback", http_status="400").inc()
+                raise HTTPException(status_code=400, detail=str(exc))
+            pending = cal.pending_labels
+        for r in results:
+            M.record_calibration(r)
+        M.CALIBRATION_PENDING_LABELS.set(pending)
+        M.REQUESTS.labels(endpoint="/feedback", http_status="200").inc()
+
+        latest = results[-1] if results else None
+        return FeedbackResponse(
+            windows_scored=len(results),
+            pending_labels=pending,
+            latest=None if latest is None else {
+                "window_id": latest.window_id,
+                "ece_mean": latest.ece_mean,
+                "reference_ece_mean": latest.reference_ece_mean,
+                "ece_delta": latest.ece_delta,
+                "threshold": latest.threshold,
+                "alarm": latest.alarm,
+            },
         )
 
     return app

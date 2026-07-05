@@ -123,3 +123,58 @@ def record_prediction(result) -> None:
     DRIFT_WINDOWS.labels(monitor="prediction").inc()
     if result.alarm:
         DRIFT_ALARMS.labels(monitor="prediction").inc()
+
+
+# --------------------------------------------------------------------------- #
+# Phase 2 calibration-decay monitor — gauges + record helper.
+#
+# Labels arrive late, so these gauges only advance when a window's delayed labels
+# land (via /feedback), not on every /predict. They share the DRIFT_WINDOWS /
+# DRIFT_ALARMS counters under monitor="calibration" so the empirical false-alarm
+# rate is queryable the same way the Phase 1 monitors are.
+# --------------------------------------------------------------------------- #
+
+CALIBRATION_ECE = Gauge(
+    "wafer_deploy_calibration_ece",
+    "Mean per-label ECE of the last delayed-label window")
+CALIBRATION_ECE_THRESHOLD = Gauge(
+    "wafer_deploy_calibration_ece_threshold",
+    "Calibrated ECE alarm threshold (reference null quantile)")
+CALIBRATION_REFERENCE_ECE = Gauge(
+    "wafer_deploy_calibration_reference_ece",
+    "Frozen reference mean per-label ECE (the calibration baseline)")
+CALIBRATION_ALARM = Gauge(
+    "wafer_deploy_calibration_drift_alarm",
+    "1 when the last window's mean ECE exceeded the calibrated threshold")
+CALIBRATION_ECE_PER_LABEL = Gauge(
+    "wafer_deploy_calibration_ece_per_label",
+    "Per-label ECE over the last delayed-label window", ["label"])
+CALIBRATION_PENDING_LABELS = Gauge(
+    "wafer_deploy_calibration_pending_labels",
+    "Served predictions still awaiting a delayed label")
+CALIBRATION_DROPPED = Counter(
+    "wafer_deploy_calibration_dropped_total",
+    "Awaiting predictions evicted by the retention cap (labels lagged too far)")
+
+
+def init_calibration_gauges(ece_threshold: float, reference_ece_mean: float) -> None:
+    """Publish the threshold + reference and zero the state gauges pre-labels."""
+    CALIBRATION_ECE_THRESHOLD.set(ece_threshold)
+    CALIBRATION_REFERENCE_ECE.set(reference_ece_mean)
+    for g in (CALIBRATION_ECE, CALIBRATION_ALARM, CALIBRATION_PENDING_LABELS):
+        g.set(0)
+    for name in LABELS:
+        CALIBRATION_ECE_PER_LABEL.labels(label=name).set(0)
+
+
+def record_calibration(result) -> None:
+    """Reflect one CalibrationDriftResult onto the gauges + counters."""
+    CALIBRATION_ECE.set(result.ece_mean)
+    CALIBRATION_ECE_THRESHOLD.set(result.threshold)
+    CALIBRATION_REFERENCE_ECE.set(result.reference_ece_mean)
+    CALIBRATION_ALARM.set(1 if result.alarm else 0)
+    for name, val in result.ece_per_label.items():
+        CALIBRATION_ECE_PER_LABEL.labels(label=name).set(val)
+    DRIFT_WINDOWS.labels(monitor="calibration").inc()
+    if result.alarm:
+        DRIFT_ALARMS.labels(monitor="calibration").inc()

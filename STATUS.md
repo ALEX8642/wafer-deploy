@@ -247,18 +247,178 @@ needed; only the two end-to-end service tests carry `needs_mixed`.
 
 ---
 
-## Next: Phase 2 — Calibration decay + delayed-label eval
+## Phase 2 — Calibration decay + delayed-label eval ✅ (2026-07-05)
 
-Open with: *"Read `ROADMAP.md` and Phase 2 of `PLAN-wafer-deploy.md`. Implement
-Phase 2 only."*
+The label-*dependent* monitor: when delayed ground truth lands for a window,
+score its ECE vs the frozen reference calibration and alarm on decay — the
+"confidence stopped meaning what it meant" signal. Fed through a new `/feedback`
+endpoint; live on `/metrics` + a dedicated Grafana row.
 
-Ready-made hooks left by Phase 1:
-- **Reference calibration** already frozen in the snapshot (`probs`, `y_true`,
-  per-label `reference_ece` in the meta summary) → the Phase 2 ECE baseline.
-- **`_WindowBuffer`** (in `drift.py`) is the reusable non-overlapping-window
-  primitive; the delayed-label harness needs the same windowing with an N-window
-  lag before a window is *scored*.
-- **`serve/metrics.py`** is the single gauge-registration + `record_*` site; add
-  the calibration gauges there and matching Grafana panels.
-- Report whether covariate drift surfaces as calibration decay **before or
-  after** accuracy drops (Phase 2 tie-in to the wafer-mixed threshold story).
+### What was built
+
+- **`src/wafer_deploy/calibration.py`** — numpy-only, same discipline as
+  `drift.py` (no scipy, runs off the committed snapshot with no checkpoint):
+  - **`binary_ece`** reimplemented bit-for-bit to wafer-mixed's binning
+    (n_bins=15, same bin convention) so the windowed ECE and the snapshot's
+    reference ECE are the *same measurement* — `test_calibration` pins the two
+    equal when the checkout is present. Plus `per_label_ece`, `reliability_bins`
+    (pooled curve with empty bins broken to NaN).
+  - **`CalibrationMonitor`** — reference probs + labels fix the per-label ECE
+    baseline **and** the alarm threshold, which — exactly like the Phase 1
+    covariate monitor — is **calibrated from the reference null**: the
+    `ece_quantile=0.99` of windowed mean-ECE drawn from the reference itself. A
+    200-map window's ECE is noisier and biased up vs the 7,603-map reference
+    point (and rare labels like Near-full are noisier still); calibrating on
+    like-sized windows folds all of that into an explicit false-alarm quantile
+    rather than a hand-picked constant.
+  - **Delayed labels:** `buffer_predictions` records served probs in order;
+    `add_labels` supplies delayed ground truth, **FIFO-matched** to the oldest
+    un-labelled predictions, and scores a non-overlapping window the moment its
+    last label lands. The await buffer is bounded by the label lag (L windows ×
+    8 floats/map — negligible); `pending_labels` exposes it.
+- **`serve/app.py`** — new **`POST /feedback`** (delayed multi-hot labels,
+  FIFO-matched; 422 on wrong width, 400 on a label with no matching prediction,
+  503 if no snapshot). `/predict` now also *buffers* served probs into the
+  calibration monitor (scored later, at feedback). Monitor built at startup from
+  the same snapshot; `/healthz` reports `calibration_active`.
+- **`serve/metrics.py`** — calibration gauges (`calibration_ece` +
+  `_threshold` + `_reference_ece`, `_drift_alarm`, per-label `_ece_per_label`,
+  `_pending_labels`) sharing the `drift_windows_total` / `drift_alarms_total`
+  counters under `monitor="calibration"`, so the empirical false-alarm rate is
+  queryable the same way the Phase 1 monitors are.
+- **`configs`/`DeployConfig`** — `calibration_n_bins=15`,
+  `calibration_ece_quantile=0.99`, `calibration_calib_trials=200`,
+  `calibration_label_lag=2` (the harness's simulated lag),
+  `calibration_max_pending=4000` (await-buffer retention cap).
+- **`scripts/replay_labeled_stream.py`** — the delayed-label harness: streams
+  maps to `/predict`, then POSTs their labels to `/feedback` **held back by
+  `--lag` windows**; prints each scored window's ECE vs reference/threshold and a
+  final false-alarm / alarm summary. `--shift` reuses the Phase 1 demo
+  corruption to show calibration decay under covariate drift.
+- **`scripts/make_calibration_figures.py`** — reproducible from the committed
+  snapshot alone (no checkpoint). Two figures → `assets/`.
+- **Grafana** — a "Phase 2 — calibration decay (delayed labels)" row: alarm
+  stat, calibration alarm-rate, windows scored, predictions-awaiting-labels, ECE
+  vs threshold vs reference, per-label ECE.
+- **Tests** — 14 new in `test_calibration.py` (see below); 39 total, all green.
+
+### Accept-criteria status
+
+| Criterion | Status |
+|---|---|
+| Calibration monitor + delayed-label harness | ✅ `CalibrationMonitor` + `/feedback` + `replay_labeled_stream.py` |
+| Reliability / ECE figures in `assets/` | ✅ `reliability_reference_vs_drifted.png`, `calibration_ece_over_time.png` |
+| Tests pass | ✅ 39 passed (14 new), ~98 s |
+
+### Honest numbers
+
+**No-drift false-alarm rate** (build on one random half of the 7,603-map
+reference, stream the disjoint half's *labelled* windows, 5 seeds):
+
+| Monitor | Design FA | **Empirical no-drift FA** | Signal under null |
+|---|---|---|---|
+| Calibration (ECE, q=0.99) | 1.0 % | **3.2 %** (per-seed 0.0–10.5 %) | windowed ECE 0.0063 < threshold 0.0094 (ref 0.0043) |
+
+Same shape as Phase 1's covariate monitor (3.2 %): held-out windows score
+marginally above the build-half null the threshold was fit on. Windowed ECE
+(0.0063) sits above the 7,603-map reference (0.0043) purely from the 200-sample
+size — which is exactly why the threshold is calibrated on 200-map windows, not
+against the reference point.
+
+**Detection under a monotone confidence-erosion warp** (whole test split, γ<1
+flattens probabilities toward 0.5):
+
+| erosion γ | alarm rate | mean windowed ECE |
+|---|---|---|
+| 0.7 | 63 % | 0.013 |
+| 0.5 | 97 % | 0.027 |
+| 0.3 | 100 % | 0.075 |
+
+**Live `/feedback` end-to-end** (uvicorn, lag=2 windows): no-drift stream **0/4
+windows alarmed**; the crude `--shift 0.5` covariate corruption **4/4 alarmed at
+ECE ≈ 0.28** — the model goes *confidently wrong* against the original labels, so
+the covariate shift surfaces as a large calibration excursion once labels land.
+
+### Phase-2 tie-in: does covariate drift surface as calibration decay before or after accuracy drops?
+
+Answered two honest ways, both in `assets/`/STATUS:
+
+- **Isolated confidence channel** (`calibration_ece_over_time.png`): a monotone
+  erosion warp with the hard **decisions held fixed** → **macro-F1 flat at 0.979
+  while ECE rose 0.006 → 0.072, 12/38 windows alarmed.** Calibration decays with
+  accuracy *exactly* unchanged — the calibration monitor catches a failure the
+  accuracy/prediction monitors are structurally blind to.
+- **Coupled covariate shift** (harness `--shift`): the label-free Phase 1
+  monitors (covariate MMD², prediction PSI) fire **immediately**; calibration
+  confirms **later** (it must wait for delayed labels) but with a large ECE
+  excursion (~0.28). So the *ordering* is: unsupervised signals lead, calibration
+  confirms — which is the whole design thesis.
+
+The fully *scored* coupling (graded intensity → which monitor fires first per
+shift type, detection-latency curves) is the Phase 3 job.
+
+### Tests (14 new, all green)
+
+```
+test_calibration.py  binary_ece hand-value + wafer-mixed parity + zero-on-calibrated;
+                     reliability_bins breaks empty bins;
+                     delayed-label lag: no score until a full window of labels;
+                     FIFO alignment (window ECE == direct ECE of its own rows);
+                     label-without-prediction raises;
+                     reference ECE reproduces committed meta;
+                     no-drift false-alarm control (disjoint half, labelled);
+                     confidence-erosion → 100% alarm; from_snapshot builds monitor;
+                     /metrics exposes calibration gauges;
+                     live /predict→/feedback scores a window + advances the counter;
+                     /feedback rejects wrong-width labels
+```
+
+Only the last three carry `needs_mixed` (drive the live service); the rest run
+off the committed snapshot.
+
+### Honest caveats / deviations
+
+- **The alarm is on mean per-label ECE**, threshold-calibrated from the reference
+  null (parallel to the covariate MMD² knob) rather than a fixed "ECE > 0.05"
+  rule — the reference ECE (0.0043) is far below any textbook constant, so a
+  constant would be meaningless here. Per-label ECE is still exposed as a gauge
+  for interpretability.
+- **Figures use a synthetic prob-space erosion warp**, clearly labelled — it
+  isolates the calibration channel for the before/after-accuracy point. The real
+  map-space shifts (corruption sweep, WM-811K cross-domain) that move
+  embeddings, probs and labels *together* are Phase 3.
+- **`docker compose up` not re-run** (no Dockerfile/deps change — calibration is
+  numpy-only, already in the image; matplotlib, added in Phase 0, covers the
+  offline figure script). The Phase-0 end-to-end docker check still stands; worth
+  one re-run in Phase 3/4.
+- The await buffer is **bounded** at `calibration_max_pending` (default 4000 ≈
+  20 windows) — required by the plan's co-tenant "bounded state" guardrail, since
+  every `/predict` buffers a prob row until its delayed label lands. Past the cap
+  the oldest awaiting predictions are evicted and their (lost-to-lag) labels
+  skipped on arrival, so FIFO alignment survives the bound; evictions surface on
+  `wafer_deploy_calibration_dropped_total`. In the delayed-label simulation the
+  lag keeps the buffer far under the cap (no evictions).
+
+---
+
+## Next: Phase 3 — Scored shift experiments + retrain trigger ← headline
+
+Open with: *"Read `ROADMAP.md` and Phase 3 of `PLAN-wafer-deploy.md`. Implement
+Phase 3 only."*
+
+Ready-made hooks left by Phases 1–2:
+- **All three monitors** are live and threshold-calibrated: covariate MMD²
+  (`drift.py`), prediction PSI (`drift.py`), calibration ECE (`calibration.py`),
+  each with `monitor=`-tagged `drift_windows_total` / `drift_alarms_total`
+  counters — the substrate for the Phase 3 **retrain-trigger** hysteresis.
+- **Two harnesses** stream through the live service:
+  `replay_stream.py` (maps → covariate/prediction) and
+  `replay_labeled_stream.py` (maps + delayed labels → calibration). Phase 3's
+  corruption sweep + WM-811K cross-domain feed both; `corrupt()` in
+  `replay_stream.py` is the crude demo shift to *replace* with the scored sweep.
+- **WM-811K** raw at `../wafer-defect-classifier/data/raw/LSWMD.pkl` (verified in
+  Phase 0) is the real out-of-domain source; feed single-defect maps through the
+  MixedWM38-served model for a genuine covariate shift with a known cause.
+- The **"which monitor fires first"** diagnostic is already framed (Phase-2
+  tie-in above): unsupervised leads, calibration confirms on delayed labels —
+  Phase 3 turns that into scored detection-latency curves per shift.

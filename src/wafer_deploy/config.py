@@ -65,6 +65,24 @@ class DeployConfig:
     # PSI alarm threshold on the predicted-label distribution (conventional 0.25).
     drift_psi_threshold: float = 0.25
 
+    # --- calibration monitor (Phase 2) ---
+    # Reuses drift_window_size for the per-window ECE. Bins for binary ECE — must
+    # match wafer-mixed (15) so windowed ECE and the reference ECE are comparable.
+    calibration_n_bins: int = 15
+    # ECE² alarm threshold = this quantile of the reference null windowed-ECE →
+    # expected false-alarm rate under no drift is (1 − quantile).
+    calibration_ece_quantile: float = 0.99
+    # Null-distribution trials used to calibrate the ECE threshold at startup.
+    calibration_calib_trials: int = 200
+    # Windows the delayed-label harness holds labels back (the simulated lag).
+    calibration_label_lag: int = 2
+    # Retention cap on served predictions awaiting a delayed label — keeps the
+    # online buffer bounded (co-tenant-safe) if labels lag far or never arrive.
+    # Must exceed (label_lag + 1) * window_size or windows can't complete; the
+    # default holds ~20 windows. Oldest predictions past the cap are dropped and
+    # their (never-arriving) labels skipped, so FIFO alignment is preserved.
+    calibration_max_pending: int = 4000
+
     # ---- resolved absolute paths -------------------------------------------
 
     @property
