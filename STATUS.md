@@ -137,17 +137,128 @@ Warnings are third-party only (starlette TestClient→httpx2; matplotlib/pyparsi
 
 ---
 
-## Next: Phase 1 — Unsupervised monitors (input + prediction-rate) ← core
+## Phase 1 — Unsupervised monitors: input + prediction-rate ✅ (2026-07-05)
 
-Open with: *"Read `ROADMAP.md` and Phase 1 of `PLAN-wafer-deploy.md`. Implement
-Phase 1 only."*
+Both label-free monitors are live on `/metrics` + the dashboard, calibrated
+against the committed reference snapshot, and fed from the `/predict` path.
 
-Ready-made hooks left by Phase 0:
-- **Embeddings** already exposed by `Predictor` (512-d, `predict_batch` returns
-  them) and frozen in the snapshot → MMD / KS covariate-drift bank.
-- **Reference prediction-rate + label histogram** already in the snapshot
-  summary → PSI / chi-square prediction-drift baseline.
-- **`serve/metrics.py`** is the single registration site — add drift gauges
-  there so they land on `/metrics` alongside the serving counters; add matching
-  Grafana panels to `monitoring/grafana/dashboards/wafer_deploy.json`.
-- Report the **no-drift false-alarm rate** in this file when Phase 1 lands.
+### What was built
+
+- **`src/wafer_deploy/drift.py`** — numpy-only (no scipy, so the online path
+  stays in the lean serving image), bounded state:
+  - **Drift math** as pinned pure functions: `rbf_mmd2` (unbiased squared MMD,
+    RBF kernel, diagonal excluded), `median_heuristic_gamma`, `ks_per_dim`
+    (per-dimension two-sample KS via sorted-CDF `searchsorted`), `psi`
+    (normalizes counts *or* proportions, ε-clipped).
+  - **`CovariateDriftMonitor`** — embedding-space MMD² (primary) + KS
+    (interpretability) vs a **bounded reference bank** (subsampled to
+    `max_ref=1024`). Fixed RBF bandwidth from the bank's median heuristic so
+    MMD² is comparable across windows. **The MMD² alarm threshold is calibrated
+    from the reference itself** — the `mmd_quantile=0.99` of the null
+    window-vs-bank distribution — so the false-alarm rate is an explicit design
+    quantile, not a guess.
+  - **`PredictionDriftMonitor`** — PSI on the predicted-label *share*
+    distribution (multi-label, so PSI compares which labels dominate) + windowed
+    defect-rate vs reference; conventional `psi_threshold=0.25`.
+  - **Non-overlapping windows** (`_WindowBuffer`): state never exceeds one
+    window (drained on completion) → sidecar-safe. `update()` takes a batch or a
+    single row, returns a result per completed window. `DriftMonitors` pairs both
+    + a `from_snapshot` factory + `observe()`.
+- **`serve/metrics.py`** — drift gauges (`covariate_mmd2` + threshold, `ks_mean`,
+  `ks_max`, `covariate_drift_alarm`; `prediction_psi` + threshold,
+  `prediction_defect_rate`, `prediction_drift_alarm`; `windowed_label_rate` per
+  label) and window/alarm **counters** (`drift_windows_total`,
+  `drift_alarms_total` by `monitor`) so the empirical false-alarm rate is
+  queryable straight off `/metrics`. `init_drift_gauges` publishes thresholds
+  pre-traffic; `record_covariate` / `record_prediction` are the single update
+  site.
+- **`serve/app.py`** — monitors built at startup from the reference snapshot
+  (independent of the checkpoint; degrades cleanly if the snapshot is absent, and
+  `/healthz` now reports `monitors_active`). Fed under a `threading.Lock` from
+  `/predict` (sync endpoints run in a threadpool); gauges reflect completed
+  windows only, so most requests just buffer.
+- **`configs`/`DeployConfig`** — `drift_window_size=200`, `drift_max_ref=1024`,
+  `drift_mmd_quantile=0.99`, `drift_calib_trials=200`, `drift_psi_threshold=0.25`
+  (YAML-overridable).
+- **Grafana** — a "Phase 1 — unsupervised drift monitors" row: covariate /
+  prediction alarm stats, a covariate alarm-rate stat, windows-evaluated, MMD²
+  vs threshold, PSI vs threshold, windowed defect-rate, windowed per-label rate.
+- **`scripts/replay_stream.py`** — the streaming harness: replays the
+  wafer-mixed test split through the live service (`--shift` applies a crude
+  demo-only covariate corruption — the *scored* sweep is Phase 3), prints each
+  completed window's MMD²/KS/PSI/defect-rate off `/metrics`, and a final
+  false-alarm/alarm summary.
+
+### Accept-criteria status
+
+| Criterion | Status |
+|---|---|
+| Both monitors live on `/metrics` + dashboard | ✅ gauges + counters exposed; 9 new panels |
+| No-drift false-alarm rate reported (below) | ✅ |
+| Tests pass | ✅ 25 passed (14 new in `test_drift.py`), ~90 s |
+
+### No-drift false-alarm rate (the honest number)
+
+Measured by building each monitor on one random half of the 7,603-map reference
+and streaming the **disjoint** other half in non-overlapping windows of 200
+(~19 windows/half), averaged over 5 seeds:
+
+| Monitor | Design FA | **Empirical no-drift FA** | Signal under null |
+|---|---|---|---|
+| Covariate (MMD², q=0.99) | 1.0 % | **3.2 %** (per-seed 0.0–5.3 %) | windowed MMD² 0.00022 ≪ threshold 0.00297 |
+| Prediction (PSI, τ=0.25) | — | **0.0 %** | windowed PSI 0.018 ≪ 0.25 |
+
+The ~2 pt covariate gap above the 1 % design point is expected and honest: the
+threshold is calibrated on windows drawn from the *build* half (which overlap
+the reference bank), so truly held-out windows score marginally higher. It is
+still an order of magnitude below a broken always-fires monitor, and the mean
+null MMD² sits ~13× under the threshold. **Detection** (not the scored Phase-3
+job): a per-dimension 3σ embedding offset drives MMD² over threshold on **100 %**
+of windows — pinned in `test_shifted_stream_raises_mmd_and_alarms`.
+
+### Tests (14 new, all green)
+
+```
+test_drift.py  psi hand-value + zero + counts/proportions equivalence;
+               mmd² null≈0 + grows with mean-shift; ks flags shifted dim;
+               non-overlapping window bookkeeping;
+               no-drift false-alarm control (committed snapshot, disjoint half);
+               shifted stream → 100% alarm; prediction null (in-domain) + label-shift alarm;
+               from_snapshot builds both; /metrics exposes drift gauges;
+               full window through the live service advances windows_total
+```
+
+Covariate/PSI tests run off the **committed snapshot** — no checkpoint or dataset
+needed; only the two end-to-end service tests carry `needs_mixed`.
+
+### Honest caveats / deviations
+
+- **PSI is on the label *share* distribution**, not a single categorical
+  histogram (multi-label labels don't sum to 1). Documented in `drift.py`; it
+  reads as "which defects dominate has shifted." Chi-square was folded into this
+  rather than added as a second redundant statistic — the plan listed
+  "PSI / chi-square" as alternatives.
+- The demo `--shift` in the harness is intentionally crude (rot90 + failing-die
+  injection); the **scored** corruption sweep + real WM-811K cross-domain shift
+  are Phase 3. No detection-latency curve is claimed here.
+- `docker compose up` not re-run this phase (no Dockerfile/deps change — drift
+  is numpy-only, already in the image); the Phase-0 end-to-end docker check
+  still stands. Worth one re-run in Phase 3/4 once panels matter for the demo.
+
+---
+
+## Next: Phase 2 — Calibration decay + delayed-label eval
+
+Open with: *"Read `ROADMAP.md` and Phase 2 of `PLAN-wafer-deploy.md`. Implement
+Phase 2 only."*
+
+Ready-made hooks left by Phase 1:
+- **Reference calibration** already frozen in the snapshot (`probs`, `y_true`,
+  per-label `reference_ece` in the meta summary) → the Phase 2 ECE baseline.
+- **`_WindowBuffer`** (in `drift.py`) is the reusable non-overlapping-window
+  primitive; the delayed-label harness needs the same windowing with an N-window
+  lag before a window is *scored*.
+- **`serve/metrics.py`** is the single gauge-registration + `record_*` site; add
+  the calibration gauges there and matching Grafana panels.
+- Report whether covariate drift surfaces as calibration decay **before or
+  after** accuracy drops (Phase 2 tie-in to the wafer-mixed threshold story).

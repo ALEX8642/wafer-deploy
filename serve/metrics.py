@@ -39,3 +39,87 @@ def init_label_counters() -> None:
     """Materialise every label's counter at 0 so panels aren't blank pre-traffic."""
     for name in LABELS:
         PREDICTED_LABELS.labels(label=name).inc(0)
+
+
+# --------------------------------------------------------------------------- #
+# Phase 1 drift monitors — gauges + record helpers.
+#
+# Gauges (not counters): each holds the latest completed-window value, which is
+# what a drift dashboard reads. Counters below track how many windows and alarms
+# have fired so no-drift false-alarm rate is queryable straight off /metrics.
+# --------------------------------------------------------------------------- #
+
+# Covariate (input/embedding) drift.
+COVARIATE_MMD2 = Gauge(
+    "wafer_deploy_covariate_mmd2",
+    "RBF-MMD^2 between the last embedding window and the reference bank")
+COVARIATE_KS_MEAN = Gauge(
+    "wafer_deploy_covariate_ks_mean",
+    "Mean per-dimension KS statistic, last embedding window vs reference")
+COVARIATE_KS_MAX = Gauge(
+    "wafer_deploy_covariate_ks_max",
+    "Max per-dimension KS statistic, last embedding window vs reference")
+COVARIATE_MMD2_THRESHOLD = Gauge(
+    "wafer_deploy_covariate_mmd2_threshold",
+    "Calibrated MMD^2 alarm threshold (reference null quantile)")
+COVARIATE_ALARM = Gauge(
+    "wafer_deploy_covariate_drift_alarm",
+    "1 when the last window's MMD^2 exceeded the calibrated threshold")
+
+# Prediction-rate / label-distribution drift.
+PREDICTION_PSI = Gauge(
+    "wafer_deploy_prediction_psi",
+    "PSI of the predicted-label distribution, last window vs reference")
+PREDICTION_PSI_THRESHOLD = Gauge(
+    "wafer_deploy_prediction_psi_threshold", "PSI alarm threshold")
+PREDICTION_DEFECT_RATE = Gauge(
+    "wafer_deploy_prediction_defect_rate",
+    "Windowed fraction of maps with >=1 predicted defect")
+PREDICTION_ALARM = Gauge(
+    "wafer_deploy_prediction_drift_alarm",
+    "1 when the last window's PSI exceeded the threshold")
+WINDOWED_LABEL_RATE = Gauge(
+    "wafer_deploy_windowed_label_rate",
+    "Per-label fire-rate over the last completed window", ["label"])
+
+# Window / alarm accounting (rate() over these = empirical false-alarm rate).
+DRIFT_WINDOWS = Counter(
+    "wafer_deploy_drift_windows_total", "Drift windows evaluated", ["monitor"])
+DRIFT_ALARMS = Counter(
+    "wafer_deploy_drift_alarms_total", "Drift-window alarms fired", ["monitor"])
+
+
+def init_drift_gauges(mmd2_threshold: float, psi_threshold: float) -> None:
+    """Publish thresholds and zero the state gauges so panels render pre-traffic."""
+    COVARIATE_MMD2_THRESHOLD.set(mmd2_threshold)
+    PREDICTION_PSI_THRESHOLD.set(psi_threshold)
+    for g in (COVARIATE_MMD2, COVARIATE_KS_MEAN, COVARIATE_KS_MAX,
+              COVARIATE_ALARM, PREDICTION_PSI, PREDICTION_DEFECT_RATE,
+              PREDICTION_ALARM):
+        g.set(0)
+    for name in LABELS:
+        WINDOWED_LABEL_RATE.labels(label=name).set(0)
+
+
+def record_covariate(result) -> None:
+    """Reflect one CovariateDriftResult onto the gauges + counters."""
+    COVARIATE_MMD2.set(result.mmd2)
+    COVARIATE_KS_MEAN.set(result.ks_mean)
+    COVARIATE_KS_MAX.set(result.ks_max)
+    COVARIATE_MMD2_THRESHOLD.set(result.threshold)
+    COVARIATE_ALARM.set(1 if result.alarm else 0)
+    DRIFT_WINDOWS.labels(monitor="covariate").inc()
+    if result.alarm:
+        DRIFT_ALARMS.labels(monitor="covariate").inc()
+
+
+def record_prediction(result) -> None:
+    """Reflect one PredictionDriftResult onto the gauges + counters."""
+    PREDICTION_PSI.set(result.psi)
+    PREDICTION_DEFECT_RATE.set(result.defect_rate)
+    PREDICTION_ALARM.set(1 if result.alarm else 0)
+    for name, rate in result.per_label_rate.items():
+        WINDOWED_LABEL_RATE.labels(label=name).set(rate)
+    DRIFT_WINDOWS.labels(monitor="prediction").inc()
+    if result.alarm:
+        DRIFT_ALARMS.labels(monitor="prediction").inc()

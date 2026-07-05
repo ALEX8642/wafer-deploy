@@ -17,6 +17,7 @@ Design notes:
 """
 from __future__ import annotations
 
+import threading
 import time
 from contextlib import asynccontextmanager
 
@@ -27,8 +28,10 @@ from pydantic import BaseModel, Field
 
 from serve import metrics as M
 from wafer_deploy.config import DeployConfig
+from wafer_deploy.drift import DriftMonitors
 from wafer_deploy.labels import LABELS
 from wafer_deploy.predictor import Predictor
+from wafer_deploy.snapshot import load_snapshot
 
 
 class PredictRequest(BaseModel):
@@ -61,11 +64,29 @@ def create_app(cfg: DeployConfig | None = None) -> FastAPI:
             app.state.predictor = None
             app.state.load_error = f"{type(exc).__name__}: {exc}"
             M.UP.set(0)
+        # Build the Phase 1 drift monitors from the committed reference snapshot.
+        # Independent of the checkpoint: the snapshot alone parameterises them,
+        # though they are only *fed* once /predict starts producing embeddings.
+        try:
+            snap = load_snapshot(cfg.reference_snapshot_path)
+            app.state.monitors = DriftMonitors.from_snapshot(
+                snap, LABELS, window_size=cfg.drift_window_size,
+                max_ref=cfg.drift_max_ref, mmd_quantile=cfg.drift_mmd_quantile,
+                calib_trials=cfg.drift_calib_trials,
+                psi_threshold=cfg.drift_psi_threshold, seed=cfg.seed)
+            M.init_drift_gauges(app.state.monitors.covariate.threshold,
+                                cfg.drift_psi_threshold)
+        except Exception as exc:  # no reference → serving still fine, no monitors
+            app.state.monitors = None
+            app.state.monitor_error = f"{type(exc).__name__}: {exc}"
         yield
 
     app = FastAPI(title="wafer-deploy", version="0.1.0", lifespan=lifespan)
     app.state.predictor = None
     app.state.load_error = None
+    app.state.monitors = None
+    app.state.monitor_error = None
+    app.state.monitor_lock = threading.Lock()
     app.state.cfg = cfg
 
     def _predictor() -> Predictor:
@@ -81,11 +102,14 @@ def create_app(cfg: DeployConfig | None = None) -> FastAPI:
         p = app.state.predictor
         loaded = p is not None
         M.REQUESTS.labels(endpoint="/healthz", http_status="200").inc()
-        body = {"status": "ok" if loaded else "degraded", "model_loaded": loaded}
+        body = {"status": "ok" if loaded else "degraded", "model_loaded": loaded,
+                "monitors_active": app.state.monitors is not None}
         if loaded:
             body["checkpoint"] = p.checkpoint_meta
         else:
             body["error"] = app.state.load_error
+        if app.state.monitors is None and app.state.monitor_error:
+            body["monitor_error"] = app.state.monitor_error
         return body
 
     @app.get("/metrics")
@@ -117,6 +141,18 @@ def create_app(cfg: DeployConfig | None = None) -> FastAPI:
         for name in active:
             M.PREDICTED_LABELS.labels(label=name).inc()
         M.REQUESTS.labels(endpoint="/predict", http_status="200").inc()
+
+        # Feed the unsupervised drift monitors. Serving runs sync endpoints in a
+        # threadpool, so guard the (stateful, bounded) window buffers with a lock;
+        # gauges reflect only completed windows, so most requests just buffer.
+        monitors = app.state.monitors
+        if monitors is not None:
+            with app.state.monitor_lock:
+                cov_results, pred_results = monitors.observe(res.embeddings, res.preds)
+            for r in cov_results:
+                M.record_covariate(r)
+            for r in pred_results:
+                M.record_prediction(r)
 
         return PredictResponse(
             labels=list(LABELS),

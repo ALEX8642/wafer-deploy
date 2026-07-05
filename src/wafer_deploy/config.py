@@ -52,6 +52,19 @@ class DeployConfig:
     port: int = 8000
     seed: int = 42
 
+    # --- drift monitors (Phase 1) ---
+    # Non-overlapping window of maps per drift evaluation.
+    drift_window_size: int = 200
+    # Bounded reference bank size for the MMD/KS comparison (co-tenant memory cap).
+    drift_max_ref: int = 1024
+    # MMD² alarm threshold = this quantile of the reference null → expected
+    # false-alarm rate under no drift is (1 − quantile).
+    drift_mmd_quantile: float = 0.99
+    # Null-distribution trials used to calibrate the MMD² threshold at startup.
+    drift_calib_trials: int = 200
+    # PSI alarm threshold on the predicted-label distribution (conventional 0.25).
+    drift_psi_threshold: float = 0.25
+
     # ---- resolved absolute paths -------------------------------------------
 
     @property
