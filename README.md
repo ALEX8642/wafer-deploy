@@ -111,15 +111,28 @@ requests queue rather than speed up on CPU; **scale throughput by running replic
 not threads.** Latency is box-load sensitive (rises under contention); the authoritative
 p50/p99 come from the GB10 arm64 deploy.
 
-**GB10 arm64 co-tenant deploy** — build the arm64 image and run it as a co-tenant next
-to the LLM stack, capturing latency under LLM co-tenancy **and** isolated. Full runbook:
-[`docs/DEPLOY.md`](docs/DEPLOY.md). Capture with the same tool:
-`python scripts/bench_latency.py --concurrency 1 --json …`.
+**GB10 arm64 co-tenant deploy** — measured on the GB10 Grace-Blackwell cluster
+(`spark0`, 20-core aarch64), the native arm64 image running as a **co-tenant next to a
+live LLM stack** (comfyui / vLLM / ollama / litellm / open-webui, ~109 GB RAM in use),
+CPU-only by policy, `--memory 1g` cap. Runbook: [`docs/DEPLOY.md`](docs/DEPLOY.md); raw
+captures in [`docs/bench_gb10_*.json`](docs).
 
-| condition | p50 | p99 | throughput | mem |
+| condition | p50 | p99 | throughput | container mem |
 |---|---|---|---|---|
-| GB10 arm64, isolated, c=1 | _capture per DEPLOY.md_ | | | |
-| GB10 arm64, co-tenant, c=1 | _capture per DEPLOY.md_ | | | |
+| GB10 arm64, co-tenant, **c=1** | **108 ms** | **125 ms** | 9.3 req/s | **431 MiB** |
+| GB10 arm64, co-tenant, c=8 | 837 ms | 1046 ms | 9.5 req/s | 552 MiB |
+
+- **Footprint 431–552 MiB** — half the 1 GB budget, so it co-tenants with the LLM stack
+  **without a spin-down** (the isolated baseline was intentionally *not* captured — the
+  service is small enough that tearing down the standing stack wasn't warranted).
+- **Throughput is flat at ~9.4 req/s** whether c=1 or c=8: inference serialises on the
+  one shared CPU model, so concurrency only adds queueing latency (p50 108 → 837 ms).
+  **Scale by replicas, not threads.** 0 failures at c=8 (the thread-safety fix holds on
+  arm64).
+- **Latency is thread-saturated, not core-bound:** identical p50 at a 4- vs 12-CPU cap —
+  a single resnet18 224² forward doesn't parallelise further on the Grace cores. It is
+  **CPU-by-policy**; the Blackwell GPU would cut latency sharply but wafer-arrival rates
+  don't need it (9 req/s per replica is ample at fab throughput).
 
 > **Thread-safety note (a bug the load test caught):** the penultimate-feature hook
 > writes shared model state, so before Phase 4 concurrent `/predict` calls raced on the

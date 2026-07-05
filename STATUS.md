@@ -598,20 +598,38 @@ load test: **1500 requests at c=8, 0 failed.** Pinned by `tests/test_concurrency
 serial reference — the swap guard). This is exactly why the docker load run is
 load-bearing: the single-request TestClient path could not have surfaced it.
 
-### GB10 arm64 — the one remaining Alex step (hands-on-cluster)
+### GB10 arm64 — captured on the cluster (2026-07-05)
 
-Not captured here (this session is on the x86 box; no GB10 access). Fully scripted:
-`docs/DEPLOY.md` → build arm64 → co-tenant `docker run` → `bench_latency.py` for
-isolated + co-tenant p50/p99/throughput/mem → paste into the README table + the resume
-bullet below. Consistent with the standing protocol (hardware runs happen in Alex's
-terminal; Claude brings back metrics).
+Alex opened an SSH master to the GB10 (`spark0`, 20-core aarch64 Grace-Blackwell);
+the capture ran over that connection. Native arm64 build (aarch64 torch-CPU wheel off
+the same Dockerfile, image 1.14 GB), run as a **co-tenant next to the live LLM stack**
+(comfyui / vLLM / ollama / litellm / open-webui, ~109 GB RAM in use), `--memory 1g` cap,
+CPU-only. Model loaded healthy; `send_sample` → Edge-Ring. Raw captures committed under
+`docs/bench_gb10_*.json`.
+
+| condition | p50 | p99 | throughput | container mem |
+|---|---|---|---|---|
+| co-tenant, c=1 (4-CPU cap) | **108 ms** | **125 ms** | 9.3 req/s | **431 MiB** |
+| co-tenant, c=8 (4-CPU cap) | 837 ms | 1046 ms | 9.5 req/s | 552 MiB |
+
+- **Footprint 431–552 MiB** — half the 1 GB budget; co-tenants **without a spin-down**,
+  so (per Alex) the isolated baseline was intentionally skipped — not worth tearing down
+  the standing LLM stack for a service this small.
+- **Throughput flat ~9.4 req/s** across c=1 and c=8 → inference serialises on the shared
+  CPU model; concurrency only adds queueing (p50 108 → 837 ms). **0 failures at c=8** —
+  the Phase-4 thread-safety fix holds on arm64.
+- **Thread-saturated, not core-bound:** identical p50 at a 4- vs 12-CPU cap (a single
+  resnet18 224² forward doesn't parallelise further on Grace cores). CPU-by-policy; the
+  Blackwell GPU would cut latency but wafer-arrival rates don't need it.
+- The container was **left running as the standing co-tenant deploy** (capped, 431 MiB);
+  `docker rm -f wafer-deploy` on `spark0` removes it.
 
 ### Accept-criteria status
 
 | Criterion | Status |
 |---|---|
 | Quickstart works from a fresh clone (docker-compose, CPU) | ✅ verified end-to-end in a temp export |
-| GB10 numbers captured | ⏳ **runbook + bench ready; arm64 capture is on Alex** (no GB10 access from this box) |
+| GB10 numbers captured | ✅ **arm64 co-tenant on spark0: p50 108 / p99 125 ms, 431 MiB** (table above; raw JSON committed) |
 | Cross-links live | ✅ README ↔ 4 siblings; ALEX8642 table updated |
 | Resume bullet in STATUS | ✅ below |
 | `/code-review` (medium) pre-commit | ✅ run before commit |
@@ -626,10 +644,14 @@ terminal; Claude brings back metrics).
 > cross-domain shift** (served-model recall drops to **45.6 %**, caught unsupervised at
 > **85–100× the MMD² threshold** before any label arrives); no-drift false-alarm 0–3.2 %
 > per monitor, **trigger silent at zero drift**. Fresh-clone `docker compose up`
-> reproduces the board on CPU (~34 ms p50, <600 MB); a concurrency load test caught and
-> fixed a predictor thread-safety bug. _[+ GB10 arm64 co-tenant p50/p99 once captured.]_
+> reproduces the board on CPU; a concurrency load test caught and fixed a predictor
+> thread-safety bug. Deployed the native **arm64 image as a co-tenant on an NVIDIA GB10
+> (Grace-Blackwell) cluster** beside a live LLM stack — **431 MiB footprint, p50 108 /
+> p99 125 ms** single-request CPU latency, throughput bound by design (serialised
+> inference — scale by replicas).
 
 ---
 
-**wafer-deploy complete — all 5 phases shipped.** Push (this repo + `ALEX8642`) and the
-GB10 arm64 latency capture are the two hands-on steps left for Alex.
+**wafer-deploy complete — all 5 phases shipped, GB10 numbers captured.** The one step
+left for Alex: **push** this repo + the `ALEX8642` profile commit (auto-mode blocks
+pushes). The arm64 co-tenant service is left running on `spark0`.

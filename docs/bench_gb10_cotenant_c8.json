@@ -1,0 +1,19 @@
+{
+  "label": "gb10-cotenant-c8",
+  "url": "http://localhost:8000",
+  "n": 2000,
+  "errors": 0,
+  "concurrency": 8,
+  "map_source": "synthetic",
+  "client_ms": {
+    "p50": 837.21,
+    "p95": 895.2,
+    "p99": 1046.03,
+    "mean": 838.45,
+    "min": 88.39,
+    "max": 1198.96
+  },
+  "server_latency_ms_p50": 835.04,
+  "throughput_rps": 9.5,
+  "wall_s": 210.0
+}
