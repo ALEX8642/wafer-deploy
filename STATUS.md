@@ -401,24 +401,144 @@ off the committed snapshot.
 
 ---
 
-## Next: Phase 3 — Scored shift experiments + retrain trigger ← headline
+## Phase 3 — Scored shift experiments + retrain trigger ✅ (2026-07-05) ← headline
 
-Open with: *"Read `ROADMAP.md` and Phase 3 of `PLAN-wafer-deploy.md`. Implement
-Phase 3 only."*
+The three monitors and a combined **retrain trigger** scored under controlled
+shifts, with honest numbers: detection latency, recall, false-alarm rate, and
+*which monitor fires first* — misses included. Offline drift science (per the
+hardware policy, on the CPU box, never the cluster); only the small scored-results
+JSON + figures are committed.
 
-Ready-made hooks left by Phases 1–2:
-- **All three monitors** are live and threshold-calibrated: covariate MMD²
-  (`drift.py`), prediction PSI (`drift.py`), calibration ECE (`calibration.py`),
-  each with `monitor=`-tagged `drift_windows_total` / `drift_alarms_total`
-  counters — the substrate for the Phase 3 **retrain-trigger** hysteresis.
-- **Two harnesses** stream through the live service:
-  `replay_stream.py` (maps → covariate/prediction) and
-  `replay_labeled_stream.py` (maps + delayed labels → calibration). Phase 3's
-  corruption sweep + WM-811K cross-domain feed both; `corrupt()` in
-  `replay_stream.py` is the crude demo shift to *replace* with the scored sweep.
-- **WM-811K** raw at `../wafer-defect-classifier/data/raw/LSWMD.pkl` (verified in
-  Phase 0) is the real out-of-domain source; feed single-defect maps through the
-  MixedWM38-served model for a genuine covariate shift with a known cause.
-- The **"which monitor fires first"** diagnostic is already framed (Phase-2
-  tie-in above): unsupervised leads, calibration confirms on delayed labels —
-  Phase 3 turns that into scored detection-latency curves per shift.
+### What was built
+
+- **`src/wafer_deploy/shift.py`** — the *scored* shift library (numpy-only, runs
+  in the lean image or offline identically). Three graded per-map corruptions
+  with `intensity==0` an **exact identity** (the FA control depends on this):
+  `rotation` (≤45° nearest-neighbour), `noise` (pass↔fail die flips),
+  `resolution` (coarsen-then-restore). Plus `class_prior_campaign` (a stream-level
+  Edge-Ring "defect campaign", no re-inference) and `wm811k_to_multihot` (the
+  WM-811K→MixedWM38 label bridge — same 8-defect taxonomy, `none`→zeros).
+- **`src/wafer_deploy/trigger.py`** — `RetrainTrigger`: ORs the three monitor
+  channels with **hysteresis** (3 consecutive OR'd-alarm windows arm it,
+  debounce; releases after 3 clear windows, anti-chatter). Bounded integer state
+  → co-tenant-safe; the *same class* drives the offline scoring and the online
+  sidecar.
+- **`src/wafer_deploy/experiments.py`** — the offline scoring engine: batched
+  `predict_maps` / `corrupt_and_predict`, and `run_stream` which feeds each window
+  through the **real** monitor objects + trigger, applying the calibration
+  **label lag** (calibration's verdict for window *k* reaches the trigger *k+lag*).
+  Returns per-window records + a detection summary (per-channel latency, recall,
+  first channel, trigger latency). `CalibrationMonitor.score_window` added so the
+  online FIFO path and the offline direct path are the *same measurement*.
+- **Service wiring** — `RetrainTrigger` built at startup; fed once per completed
+  covariate window (the heartbeat), folding in the paired prediction alarm and the
+  latest — possibly lagged — calibration verdict (`app.py`). New gauges
+  `wafer_deploy_retrain_trigger` (latched), `..._reason{channel}`, and counter
+  `..._triggers_total` (`metrics.py`); `/healthz` reports `trigger_active` +
+  `retrain_triggered`. Grafana **Phase 3 row** (7 panels): trigger stat, decisions
+  counter, per-channel contribution timeline, alarm counts by channel.
+- **`scripts/run_shift_experiments.py`** — the driver: warmup from the snapshot
+  (clean, no inference) + shifted body; writes committed
+  `experiments/shift_results.json` (28.5 KB). `--quick` smoke mode.
+  **Bug the sweep caught:** the MixedWM38 test split is **ordered by defect-combo**,
+  so a contiguous body slice is itself a distribution shift (the intensity-0 FA
+  control fired). Fixed by shuffling test indices before slicing — the FA control
+  is now silent across all corruptions.
+- **`scripts/make_shift_figures.py`** — renders 3 figures from the committed JSON
+  alone (no checkpoint): detection curve, monitor-firing timeline, alarm table.
+- **Tests** — 24 new (7 `test_trigger.py`, 17 `test_experiments.py`); 65 total,
+  all green (~143 s). Only 1 new test (`test_corruption_moves_embeddings`) carries
+  `needs_mixed`; the rest run off the committed snapshot / synthetic.
+
+### Accept-criteria status
+
+| Criterion | Status |
+|---|---|
+| Scored detection table (latency + false-alarm) in STATUS | ✅ below |
+| Trigger policy implemented (hysteresis, OR of 3 channels) | ✅ `trigger.py`, wired live + offline |
+| Figures + narrative committed | ✅ `assets/shift_{detection_curve,monitor_timeline,alarm_table}.png` + `docs/EXPERIMENTS.md` |
+
+### Scored detection table (the honest numbers)
+
+Stream = 3 warmup windows (clean) + 7 shifted, onset at window 3, 200 maps/window,
+calibration label-lag 2, trigger persistence 3. Latency is **windows after onset**.
+Thresholds: MMD² 0.00352, PSI 0.25, ECE 0.01001 (ref ECE 0.00429).
+
+| shift | first channel | cov lat | pred lat | cal lat | trigger lat | FA@0 |
+|---|---|---|---|---|---|---|
+| rotation @1.00 | covariate | 0 | — (blind) | 2 | 2 | no |
+| noise @1.00 | covariate | 0 | 0 | 2 | 2 | no |
+| resolution @1.00 | covariate | 0 | 0 | 2 | 2 | no |
+| WM-811K cross-dataset | covariate | 0 | 0 | 2 | 2 | n/a |
+| class-prior campaign | covariate | 3 | — (blind) | — (blind) | 5 | n/a |
+
+- **False-alarm control:** intensity 0 → every channel silent, trigger does **not**
+  fire, on all three corruptions.
+- **Detection curve** (`shift_detection_curve.png`): covariate recall→1.0 by
+  intensity 0.25 for noise/resolution and 0.5 for rotation (wafer ~4-fold symmetry
+  makes small rotations a weak shift). **Prediction PSI is flat at 0 for rotation**
+  — a rotation moves the input but not *which* defect is predicted, so the
+  label-distribution monitor is structurally blind. Calibration recall plateaus at
+  0.71 (the 2-window lag means the last two windows' labels never arrive in-stream).
+- **WM-811K cross-dataset:** covariate MMD² hits **85–100× threshold**; the served
+  MixedWM38 model recovers the true WM-811K single defect on only **45.6%** of maps
+  — the un-tuned real cross-domain accuracy drop, cause known. Caught unsupervised.
+- **Class-prior campaign (the reported miss):** covariate MMD² ramps to 7.5×
+  threshold and fires the trigger (latency 5), but **prediction PSI peaks at 0.118,
+  below the 0.25 bar, and never alarms**. A gradual prior drift of this magnitude
+  is caught by the embedding monitor, not by label-share PSI — reported, not tuned.
+
+### Which shifts are caught unsupervised vs need labels
+
+- **Unsupervised (no labels):** all five shifts fire the trigger from label-free
+  channels alone — covariate MMD² leads every one; prediction PSI adds fast
+  confirmation on noise/resolution/WM-811K. You don't wait for labels to know the
+  input moved.
+- **Needs labels (confirmation):** calibration ECE only scores once delayed labels
+  land (+2 windows) — a confirmer, not a first responder, by construction. From
+  Phase 2 it is still the *only* channel that catches pure confidence erosion with
+  accuracy held fixed.
+
+Full narrative + caveats: `docs/EXPERIMENTS.md`. Reproduce:
+`python scripts/run_shift_experiments.py` (needs checkpoint+data) →
+`python scripts/make_shift_figures.py` (committed JSON only).
+
+### Honest caveats / deviations
+
+- **`docker compose up` not re-run this phase** — shift/trigger/experiments are
+  numpy-only, already in the image; matplotlib (Phase 0) covers the offline figure
+  script. The Phase-0 end-to-end docker check still stands; the new Grafana Phase 3
+  row + live trigger firing get their end-to-end run in Phase 4's quickstart.
+- **Corruptions are synthetic + graded on purpose** (to trace a curve); WM-811K is
+  the un-tuned real anchor. Latency is in *windows* (200 maps); absolute wall-clock
+  scale is a Phase 4 (GB10 throughput) number.
+- **Online trigger vs offline scoring:** the offline engine aligns all three
+  channels per data-window with calibration lagged (rigorous for latency); the live
+  service drives the trigger off covariate windows (the heartbeat) and folds in the
+  latest prediction/calibration verdicts. Same `RetrainTrigger` class, documented in
+  `app.py`.
+- **Push is on Alex** (auto-mode blocks pushes); Phase 3 committed locally.
+
+### Environment notes
+
+- No new dependencies (numpy-only additions). Shared workspace venv unchanged.
+- The full sweep is ~520 s on the 22-core CPU box (≈50 maps/s batched, ~22 k
+  forward passes). `--quick` (~180 s) smoke-tests the pipeline end-to-end.
+
+---
+
+## Next: Phase 4 — GB10 deploy + real numbers + package
+
+Open with: *"Read `ROADMAP.md` and Phase 4 of `PLAN-wafer-deploy.md`. Implement
+Phase 4 only."*
+
+Ready-made hooks left by Phase 3:
+- **Retrain trigger live** on `/metrics` + a Grafana Phase 3 row; the quickstart's
+  "drive a drift stream → watch the dashboards → see the trigger fire" is wired —
+  Phase 4 just needs to run it through `docker compose` end-to-end (drive a shifted
+  stream via `scripts/replay_stream.py --shift …`, watch `wafer_deploy_retrain_trigger`).
+- **Scored results committed** (`experiments/shift_results.json`, `docs/EXPERIMENTS.md`,
+  `assets/shift_*.png`) — Phase 4's README pulls these numbers, does **not** recompute.
+- **Resume bullet inputs:** covariate MMD² leads all shifts; WM-811K true-label
+  recall 45.6% (real cross-domain drop); no-drift trigger FA = none at intensity 0;
+  detection latency ≤ 2 windows for the strong shifts. Add real GB10 p50/p99 in Phase 4.

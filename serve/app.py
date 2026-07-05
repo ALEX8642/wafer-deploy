@@ -33,6 +33,7 @@ from wafer_deploy.drift import DriftMonitors
 from wafer_deploy.labels import LABELS, NUM_LABELS
 from wafer_deploy.predictor import Predictor
 from wafer_deploy.snapshot import load_snapshot
+from wafer_deploy.trigger import RetrainTrigger
 
 
 class PredictRequest(BaseModel):
@@ -101,9 +102,16 @@ def create_app(cfg: DeployConfig | None = None) -> FastAPI:
                 max_pending=cfg.calibration_max_pending, seed=cfg.seed)
             M.init_calibration_gauges(app.state.calibration.threshold,
                                       app.state.calibration.reference_ece_mean)
+            # The retrain trigger combines all three channels with hysteresis.
+            # Its clock is the covariate window (the always-available heartbeat);
+            # the delayed calibration verdict is folded in at its latest value.
+            app.state.trigger = RetrainTrigger(
+                persistence=cfg.trigger_persistence, release=cfg.trigger_release)
+            M.init_trigger_gauges()
         except Exception as exc:  # no reference → serving still fine, no monitors
             app.state.monitors = None
             app.state.calibration = None
+            app.state.trigger = None
             app.state.monitor_error = f"{type(exc).__name__}: {exc}"
         yield
 
@@ -112,7 +120,12 @@ def create_app(cfg: DeployConfig | None = None) -> FastAPI:
     app.state.load_error = None
     app.state.monitors = None
     app.state.calibration = None
+    app.state.trigger = None
     app.state.monitor_error = None
+    # Latest per-channel alarm verdicts folded into the trigger. Prediction shares
+    # the covariate cadence; calibration updates late (its delayed-label window).
+    app.state.latest_pred_alarm = False
+    app.state.latest_cal_alarm = False
     app.state.monitor_lock = threading.Lock()
     app.state.cfg = cfg
 
@@ -131,7 +144,9 @@ def create_app(cfg: DeployConfig | None = None) -> FastAPI:
         M.REQUESTS.labels(endpoint="/healthz", http_status="200").inc()
         body = {"status": "ok" if loaded else "degraded", "model_loaded": loaded,
                 "monitors_active": app.state.monitors is not None,
-                "calibration_active": app.state.calibration is not None}
+                "calibration_active": app.state.calibration is not None,
+                "trigger_active": app.state.trigger is not None,
+                "retrain_triggered": bool(app.state.trigger and app.state.trigger.fired)}
         if loaded:
             body["checkpoint"] = p.checkpoint_meta
         else:
@@ -177,21 +192,37 @@ def create_app(cfg: DeployConfig | None = None) -> FastAPI:
         # probs — it is scored later, when the delayed labels arrive at /feedback.
         monitors = app.state.monitors
         calibration = app.state.calibration
-        cov_results, pred_results = [], []
+        trigger = app.state.trigger
+        cov_results, pred_results, trig_results = [], [], []
         if monitors is not None or calibration is not None:
             with app.state.monitor_lock:
                 if monitors is not None:
                     cov_results, pred_results = monitors.observe(
                         res.embeddings, res.preds)
+                    if pred_results:
+                        app.state.latest_pred_alarm = bool(pred_results[-1].alarm)
                 if calibration is not None:
                     dropped = calibration.buffer_predictions(res.probs)
                     M.CALIBRATION_PENDING_LABELS.set(calibration.pending_labels)
                     if dropped:
                         M.CALIBRATION_DROPPED.inc(dropped)
+                # Advance the retrain trigger once per completed covariate window
+                # (the heartbeat), folding in the paired prediction alarm and the
+                # latest — possibly lagged — calibration verdict.
+                if trigger is not None:
+                    for i, cov in enumerate(cov_results):
+                        pred_alarm = (bool(pred_results[i].alarm)
+                                      if i < len(pred_results)
+                                      else app.state.latest_pred_alarm)
+                        trig_results.append(trigger.update(
+                            covariate=bool(cov.alarm), prediction=pred_alarm,
+                            calibration=app.state.latest_cal_alarm))
         for r in cov_results:
             M.record_covariate(r)
         for r in pred_results:
             M.record_prediction(r)
+        for r in trig_results:
+            M.record_trigger(r)
 
         return PredictResponse(
             labels=list(LABELS),
@@ -235,6 +266,10 @@ def create_app(cfg: DeployConfig | None = None) -> FastAPI:
                 M.REQUESTS.labels(endpoint="/feedback", http_status="400").inc()
                 raise HTTPException(status_code=400, detail=str(exc))
             pending = cal.pending_labels
+            # Latch the newest calibration verdict so the next covariate window's
+            # trigger evaluation sees it — the delayed-label channel of the trigger.
+            if results:
+                app.state.latest_cal_alarm = bool(results[-1].alarm)
         for r in results:
             M.record_calibration(r)
         M.CALIBRATION_PENDING_LABELS.set(pending)

@@ -83,6 +83,13 @@ class DeployConfig:
     # their (never-arriving) labels skipped, so FIFO alignment is preserved.
     calibration_max_pending: int = 4000
 
+    # --- retrain trigger (Phase 3) ---
+    # Consecutive OR'd-alarm windows required to fire the retrain decision
+    # (debounce: trades a little detection latency for far fewer false alarms).
+    trigger_persistence: int = 3
+    # Consecutive clear windows required to release a latched trigger (anti-chatter).
+    trigger_release: int = 3
+
     # ---- resolved absolute paths -------------------------------------------
 
     @property

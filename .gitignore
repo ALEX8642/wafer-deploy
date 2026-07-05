@@ -19,4 +19,6 @@ venv/
 monitoring/grafana/data/
 
 # The committed reference snapshot lives in reference/ and IS tracked.
-# Everything a drift monitor writes at runtime goes to outputs/ (ignored above).
+# The committed Phase 3 scored results live in experiments/ and ARE tracked
+# (small JSON; the figures render from it). Everything a monitor writes at
+# runtime goes to outputs/ (ignored above).

@@ -1,0 +1,1205 @@
+{
+ "meta": {
+  "window_size": 200,
+  "warmup_windows": 3,
+  "body_windows": 7,
+  "onset_window": 3,
+  "body_maps": 1400,
+  "intensities": [
+   0.0,
+   0.25,
+   0.5,
+   0.75,
+   1.0
+  ],
+  "calibration_lag": 2,
+  "trigger": {
+   "persistence": 3,
+   "release": 3
+  },
+  "seed": 42,
+  "labels": [
+   "Center",
+   "Donut",
+   "Edge-Loc",
+   "Edge-Ring",
+   "Loc",
+   "Near-full",
+   "Scratch",
+   "Random"
+  ],
+  "mmd2_threshold": 0.0035182705983308558,
+  "psi_threshold": 0.25,
+  "ece_threshold": 0.010011719203552118,
+  "reference_ece_mean": 0.004292015608103322,
+  "checkpoint": {
+   "epoch": 7,
+   "val_macro_f1": 0.9905552553687051,
+   "arch": "resnet18",
+   "input_size": 224,
+   "embedding_dim": 512
+  },
+  "quick": false
+ },
+ "sweeps": {
+  "rotation": [
+   {
+    "intensity": 0.0,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": null,
+      "prediction": null,
+      "calibration": null
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "trigger_fired": false,
+     "trigger_latency": null,
+     "trigger_fire_windows": [],
+     "first_channel": null
+    }
+   },
+   {
+    "intensity": 0.25,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": 2,
+      "prediction": null,
+      "calibration": 2
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 0.2857142857142857,
+      "prediction": 0.0,
+      "calibration": 0.5714285714285714
+     },
+     "trigger_fired": false,
+     "trigger_latency": null,
+     "trigger_fire_windows": [],
+     "first_channel": "covariate"
+    }
+   },
+   {
+    "intensity": 0.5,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": 0,
+      "prediction": null,
+      "calibration": 2
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 1.0,
+      "prediction": 0.0,
+      "calibration": 0.7142857142857143
+     },
+     "trigger_fired": true,
+     "trigger_latency": 2,
+     "trigger_fire_windows": [
+      5
+     ],
+     "first_channel": "covariate"
+    }
+   },
+   {
+    "intensity": 0.75,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": 0,
+      "prediction": null,
+      "calibration": 2
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 1.0,
+      "prediction": 0.0,
+      "calibration": 0.7142857142857143
+     },
+     "trigger_fired": true,
+     "trigger_latency": 2,
+     "trigger_fire_windows": [
+      5
+     ],
+     "first_channel": "covariate"
+    }
+   },
+   {
+    "intensity": 1.0,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": 0,
+      "prediction": null,
+      "calibration": 2
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 1.0,
+      "prediction": 0.0,
+      "calibration": 0.7142857142857143
+     },
+     "trigger_fired": true,
+     "trigger_latency": 2,
+     "trigger_fire_windows": [
+      5
+     ],
+     "first_channel": "covariate"
+    }
+   }
+  ],
+  "noise": [
+   {
+    "intensity": 0.0,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": null,
+      "prediction": null,
+      "calibration": null
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "trigger_fired": false,
+     "trigger_latency": null,
+     "trigger_fire_windows": [],
+     "first_channel": null
+    }
+   },
+   {
+    "intensity": 0.25,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": 0,
+      "prediction": null,
+      "calibration": 2
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 1.0,
+      "prediction": 0.0,
+      "calibration": 0.7142857142857143
+     },
+     "trigger_fired": true,
+     "trigger_latency": 2,
+     "trigger_fire_windows": [
+      5
+     ],
+     "first_channel": "covariate"
+    }
+   },
+   {
+    "intensity": 0.5,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": 0,
+      "prediction": 0,
+      "calibration": 2
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 1.0,
+      "prediction": 0.5714285714285714,
+      "calibration": 0.7142857142857143
+     },
+     "trigger_fired": true,
+     "trigger_latency": 2,
+     "trigger_fire_windows": [
+      5
+     ],
+     "first_channel": "covariate"
+    }
+   },
+   {
+    "intensity": 0.75,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": 0,
+      "prediction": 0,
+      "calibration": 2
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 1.0,
+      "prediction": 1.0,
+      "calibration": 0.7142857142857143
+     },
+     "trigger_fired": true,
+     "trigger_latency": 2,
+     "trigger_fire_windows": [
+      5
+     ],
+     "first_channel": "covariate"
+    }
+   },
+   {
+    "intensity": 1.0,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": 0,
+      "prediction": 0,
+      "calibration": 2
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 1.0,
+      "prediction": 1.0,
+      "calibration": 0.7142857142857143
+     },
+     "trigger_fired": true,
+     "trigger_latency": 2,
+     "trigger_fire_windows": [
+      5
+     ],
+     "first_channel": "covariate"
+    }
+   }
+  ],
+  "resolution": [
+   {
+    "intensity": 0.0,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": null,
+      "prediction": null,
+      "calibration": null
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "trigger_fired": false,
+     "trigger_latency": null,
+     "trigger_fire_windows": [],
+     "first_channel": null
+    }
+   },
+   {
+    "intensity": 0.25,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": 0,
+      "prediction": 0,
+      "calibration": 2
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 1.0,
+      "prediction": 1.0,
+      "calibration": 0.7142857142857143
+     },
+     "trigger_fired": true,
+     "trigger_latency": 2,
+     "trigger_fire_windows": [
+      5
+     ],
+     "first_channel": "covariate"
+    }
+   },
+   {
+    "intensity": 0.5,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": 0,
+      "prediction": 0,
+      "calibration": 2
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 1.0,
+      "prediction": 1.0,
+      "calibration": 0.7142857142857143
+     },
+     "trigger_fired": true,
+     "trigger_latency": 2,
+     "trigger_fire_windows": [
+      5
+     ],
+     "first_channel": "covariate"
+    }
+   },
+   {
+    "intensity": 0.75,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": 0,
+      "prediction": 0,
+      "calibration": 2
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 1.0,
+      "prediction": 1.0,
+      "calibration": 0.7142857142857143
+     },
+     "trigger_fired": true,
+     "trigger_latency": 2,
+     "trigger_fire_windows": [
+      5
+     ],
+     "first_channel": "covariate"
+    }
+   },
+   {
+    "intensity": 1.0,
+    "summary": {
+     "n_windows": 10,
+     "onset_window": 3,
+     "calibration_lag": 2,
+     "detection_latency": {
+      "covariate": 0,
+      "prediction": 0,
+      "calibration": 2
+     },
+     "channel_alarm_rate_pre": {
+      "covariate": 0.0,
+      "prediction": 0.0,
+      "calibration": 0.0
+     },
+     "channel_alarm_rate_post": {
+      "covariate": 1.0,
+      "prediction": 1.0,
+      "calibration": 0.7142857142857143
+     },
+     "trigger_fired": true,
+     "trigger_latency": 2,
+     "trigger_fire_windows": [
+      5
+     ],
+     "first_channel": "covariate"
+    }
+   }
+  ]
+ },
+ "headline": {
+  "noise_0.5": {
+   "records": [
+    {
+     "window": 0,
+     "onset": false,
+     "mmd2": -0.00045440252413953,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": false,
+     "ks_max": 0.12128906250000004,
+     "psi": 0.0156926483513901,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.975,
+     "ece": 0.0061845666836924384,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": []
+    },
+    {
+     "window": 1,
+     "onset": false,
+     "mmd2": -0.0014710925418038867,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": false,
+     "ks_max": 0.10796875,
+     "psi": 0.020984983553484958,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.975,
+     "ece": 0.0055046684954107115,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": []
+    },
+    {
+     "window": 2,
+     "onset": false,
+     "mmd2": -0.002100679984469389,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": false,
+     "ks_max": 0.0966796875,
+     "psi": 0.02066881378712749,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.97,
+     "ece": 0.006570683888544947,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": []
+    },
+    {
+     "window": 3,
+     "onset": true,
+     "mmd2": 0.11399328552385479,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.978515625,
+     "psi": 0.29379718481922634,
+     "psi_threshold": 0.25,
+     "pred_alarm": true,
+     "defect_rate": 0.98,
+     "ece": 0.13533554798392936,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": true,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": [
+      "covariate",
+      "prediction"
+     ]
+    },
+    {
+     "window": 4,
+     "onset": true,
+     "mmd2": 0.1124010900939415,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.978515625,
+     "psi": 0.23263076569865887,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.96,
+     "ece": 0.13211350986384815,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": true,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": [
+      "covariate"
+     ]
+    },
+    {
+     "window": 5,
+     "onset": true,
+     "mmd2": 0.10032756474913707,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.978515625,
+     "psi": 0.2551213268228748,
+     "psi_threshold": 0.25,
+     "pred_alarm": true,
+     "defect_rate": 0.975,
+     "ece": 0.11740529739932937,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": true,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": true,
+     "trigger_fired": true,
+     "trigger_just_fired": true,
+     "trigger_reasons": [
+      "covariate",
+      "prediction",
+      "calibration"
+     ]
+    },
+    {
+     "window": 6,
+     "onset": true,
+     "mmd2": 0.09379443982710078,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.975,
+     "psi": 0.21903430611036728,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.985,
+     "ece": 0.12701667003624326,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": true,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": true,
+     "trigger_fired": true,
+     "trigger_just_fired": false,
+     "trigger_reasons": [
+      "covariate",
+      "calibration"
+     ]
+    },
+    {
+     "window": 7,
+     "onset": true,
+     "mmd2": 0.09619205444398926,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.973515625,
+     "psi": 0.25609443656169284,
+     "psi_threshold": 0.25,
+     "pred_alarm": true,
+     "defect_rate": 0.95,
+     "ece": 0.129112143712502,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": true,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": true,
+     "trigger_fired": true,
+     "trigger_just_fired": false,
+     "trigger_reasons": [
+      "covariate",
+      "prediction",
+      "calibration"
+     ]
+    },
+    {
+     "window": 8,
+     "onset": true,
+     "mmd2": 0.10454325299437661,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.978515625,
+     "psi": 0.29520213601482004,
+     "psi_threshold": 0.25,
+     "pred_alarm": true,
+     "defect_rate": 0.965,
+     "ece": 0.12634655924094396,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": true,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": true,
+     "trigger_fired": true,
+     "trigger_just_fired": false,
+     "trigger_reasons": [
+      "covariate",
+      "prediction",
+      "calibration"
+     ]
+    },
+    {
+     "window": 9,
+     "onset": true,
+     "mmd2": 0.1081621731327872,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.968515625,
+     "psi": 0.23564814305888737,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.985,
+     "ece": 0.13880427152445426,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": true,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": true,
+     "trigger_fired": true,
+     "trigger_just_fired": false,
+     "trigger_reasons": [
+      "covariate",
+      "calibration"
+     ]
+    }
+   ],
+   "summary": {
+    "n_windows": 10,
+    "onset_window": 3,
+    "calibration_lag": 2,
+    "detection_latency": {
+     "covariate": 0,
+     "prediction": 0,
+     "calibration": 2
+    },
+    "channel_alarm_rate_pre": {
+     "covariate": 0.0,
+     "prediction": 0.0,
+     "calibration": 0.0
+    },
+    "channel_alarm_rate_post": {
+     "covariate": 1.0,
+     "prediction": 0.5714285714285714,
+     "calibration": 0.7142857142857143
+    },
+    "trigger_fired": true,
+    "trigger_latency": 2,
+    "trigger_fire_windows": [
+     5
+    ],
+    "first_channel": "covariate"
+   }
+  },
+  "wm811k": {
+   "records": [
+    {
+     "window": 0,
+     "onset": false,
+     "mmd2": -0.00045440252413953,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": false,
+     "ks_max": 0.12128906250000004,
+     "psi": 0.0156926483513901,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.975,
+     "ece": 0.0061845666836924384,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": []
+    },
+    {
+     "window": 1,
+     "onset": false,
+     "mmd2": -0.0014710925418038867,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": false,
+     "ks_max": 0.10796875,
+     "psi": 0.020984983553484958,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.975,
+     "ece": 0.0055046684954107115,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": []
+    },
+    {
+     "window": 2,
+     "onset": false,
+     "mmd2": -0.002100679984469389,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": false,
+     "ks_max": 0.0966796875,
+     "psi": 0.02066881378712749,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.97,
+     "ece": 0.006570683888544947,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": []
+    },
+    {
+     "window": 3,
+     "onset": true,
+     "mmd2": 0.2949585922006913,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.965703125,
+     "psi": 1.2333930408976994,
+     "psi_threshold": 0.25,
+     "pred_alarm": true,
+     "defect_rate": 0.755,
+     "ece": 0.16981142359080365,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": true,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": [
+      "covariate",
+      "prediction"
+     ]
+    },
+    {
+     "window": 4,
+     "onset": true,
+     "mmd2": 0.31871829051750644,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.970703125,
+     "psi": 2.8832795766501698,
+     "psi_threshold": 0.25,
+     "pred_alarm": true,
+     "defect_rate": 0.795,
+     "ece": 0.1625886385671959,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": true,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": [
+      "covariate",
+      "prediction"
+     ]
+    },
+    {
+     "window": 5,
+     "onset": true,
+     "mmd2": 0.3205907642887297,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.970703125,
+     "psi": 1.4014273219485276,
+     "psi_threshold": 0.25,
+     "pred_alarm": true,
+     "defect_rate": 0.73,
+     "ece": 0.16147546010143227,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": true,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": true,
+     "trigger_fired": true,
+     "trigger_just_fired": true,
+     "trigger_reasons": [
+      "covariate",
+      "prediction",
+      "calibration"
+     ]
+    },
+    {
+     "window": 6,
+     "onset": true,
+     "mmd2": 0.34753221420265146,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.970703125,
+     "psi": 1.87298685690478,
+     "psi_threshold": 0.25,
+     "pred_alarm": true,
+     "defect_rate": 0.71,
+     "ece": 0.1445980870164539,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": true,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": true,
+     "trigger_fired": true,
+     "trigger_just_fired": false,
+     "trigger_reasons": [
+      "covariate",
+      "prediction",
+      "calibration"
+     ]
+    },
+    {
+     "window": 7,
+     "onset": true,
+     "mmd2": 0.34070831340084096,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.970703125,
+     "psi": 1.8091417828943108,
+     "psi_threshold": 0.25,
+     "pred_alarm": true,
+     "defect_rate": 0.705,
+     "ece": 0.14945478826523279,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": true,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": true,
+     "trigger_fired": true,
+     "trigger_just_fired": false,
+     "trigger_reasons": [
+      "covariate",
+      "prediction",
+      "calibration"
+     ]
+    },
+    {
+     "window": 8,
+     "onset": true,
+     "mmd2": 0.3400617468998658,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.965703125,
+     "psi": 3.4072824878391934,
+     "psi_threshold": 0.25,
+     "pred_alarm": true,
+     "defect_rate": 0.77,
+     "ece": 0.14181783094783612,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": true,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": true,
+     "trigger_fired": true,
+     "trigger_just_fired": false,
+     "trigger_reasons": [
+      "covariate",
+      "prediction",
+      "calibration"
+     ]
+    }
+   ],
+   "summary": {
+    "n_windows": 9,
+    "onset_window": 3,
+    "calibration_lag": 2,
+    "detection_latency": {
+     "covariate": 0,
+     "prediction": 0,
+     "calibration": 2
+    },
+    "channel_alarm_rate_pre": {
+     "covariate": 0.0,
+     "prediction": 0.0,
+     "calibration": 0.0
+    },
+    "channel_alarm_rate_post": {
+     "covariate": 1.0,
+     "prediction": 1.0,
+     "calibration": 0.6666666666666666
+    },
+    "trigger_fired": true,
+    "trigger_latency": 2,
+    "trigger_fire_windows": [
+     5
+    ],
+    "first_channel": "covariate",
+    "wm811k_true_label_recall": 0.4558333333333333
+   }
+  },
+  "campaign": {
+   "records": [
+    {
+     "window": 0,
+     "onset": false,
+     "mmd2": -0.0013054723245088384,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": false,
+     "ks_max": 0.10398437500000002,
+     "psi": 0.01739200613259633,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.985,
+     "ece": 0.006545221106663021,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": []
+    },
+    {
+     "window": 1,
+     "onset": false,
+     "mmd2": -0.0018229425813625078,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": false,
+     "ks_max": 0.10750000000000001,
+     "psi": 0.0006884728519555695,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.98,
+     "ece": 0.006023664333650185,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": []
+    },
+    {
+     "window": 2,
+     "onset": false,
+     "mmd2": -0.0016985722720791463,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": false,
+     "ks_max": 0.09800781250000001,
+     "psi": 0.00480085518641213,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.98,
+     "ece": 0.007866289328654363,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": []
+    },
+    {
+     "window": 3,
+     "onset": true,
+     "mmd2": -0.000108635597733997,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": false,
+     "ks_max": 0.1466015625,
+     "psi": 0.01672460192495828,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.975,
+     "ece": 0.005484501449364446,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": []
+    },
+    {
+     "window": 4,
+     "onset": true,
+     "mmd2": 0.0010851097144161104,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": false,
+     "ks_max": 0.1544140625,
+     "psi": 0.033140370079928386,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.965,
+     "ece": 0.006744223496342832,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": []
+    },
+    {
+     "window": 5,
+     "onset": true,
+     "mmd2": 0.0027831114341142493,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": false,
+     "ks_max": 0.1558203125,
+     "psi": 0.024747273676047628,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.995,
+     "ece": 0.0056491937247739234,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": []
+    },
+    {
+     "window": 6,
+     "onset": true,
+     "mmd2": 0.009728282831350965,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.2099609375,
+     "psi": 0.06605258325343925,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.975,
+     "ece": 0.006474757543859741,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": [
+      "covariate"
+     ]
+    },
+    {
+     "window": 7,
+     "onset": true,
+     "mmd2": 0.011193664427999517,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.2230859375,
+     "psi": 0.06902374343408724,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.985,
+     "ece": 0.004039617128600535,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": false,
+     "trigger_just_fired": false,
+     "trigger_reasons": [
+      "covariate"
+     ]
+    },
+    {
+     "window": 8,
+     "onset": true,
+     "mmd2": 0.015625364146316323,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.2509765625,
+     "psi": 0.10570437406993502,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.995,
+     "ece": 0.008749033474239021,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": true,
+     "trigger_just_fired": true,
+     "trigger_reasons": [
+      "covariate"
+     ]
+    },
+    {
+     "window": 9,
+     "onset": true,
+     "mmd2": 0.02648962759201301,
+     "mmd2_threshold": 0.0035182705983308558,
+     "cov_alarm": true,
+     "ks_max": 0.2896484375,
+     "psi": 0.118479356575919,
+     "psi_threshold": 0.25,
+     "pred_alarm": false,
+     "defect_rate": 0.985,
+     "ece": 0.006138869147181732,
+     "ece_threshold": 0.010011719203552118,
+     "cal_alarm": false,
+     "ece_reference": 0.004292015608103322,
+     "cal_alarm_effective": false,
+     "trigger_fired": true,
+     "trigger_just_fired": false,
+     "trigger_reasons": [
+      "covariate"
+     ]
+    }
+   ],
+   "summary": {
+    "n_windows": 10,
+    "onset_window": 3,
+    "calibration_lag": 2,
+    "detection_latency": {
+     "covariate": 3,
+     "prediction": null,
+     "calibration": null
+    },
+    "channel_alarm_rate_pre": {
+     "covariate": 0.0,
+     "prediction": 0.0,
+     "calibration": 0.0
+    },
+    "channel_alarm_rate_post": {
+     "covariate": 0.5714285714285714,
+     "prediction": 0.0,
+     "calibration": 0.0
+    },
+    "trigger_fired": true,
+    "trigger_latency": 5,
+    "trigger_fire_windows": [
+     8
+    ],
+    "first_channel": "covariate"
+   }
+  }
+ }
+}

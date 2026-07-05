@@ -1,362 +1,1308 @@
 {
-  "uid": "wafer-deploy-overview",
-  "title": "wafer-deploy — service overview",
-  "tags": ["wafer-deploy"],
-  "timezone": "browser",
-  "schemaVersion": 39,
-  "version": 2,
-  "refresh": "5s",
-  "time": { "from": "now-15m", "to": "now" },
-  "templating": { "list": [] },
-  "annotations": { "list": [] },
-  "panels": [
-    {
-      "id": 1,
-      "type": "stat",
-      "title": "Service up",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } },
-            { "type": "value", "options": { "1": { "text": "UP", "color": "green" } } }
-          ],
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+ "uid": "wafer-deploy-overview",
+ "title": "wafer-deploy \u2014 service overview",
+ "tags": [
+  "wafer-deploy"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "version": 2,
+ "refresh": "5s",
+ "time": {
+  "from": "now-15m",
+  "to": "now"
+ },
+ "templating": {
+  "list": []
+ },
+ "annotations": {
+  "list": []
+ },
+ "panels": [
+  {
+   "id": 1,
+   "type": "stat",
+   "title": "Service up",
+   "gridPos": {
+    "h": 4,
+    "w": 4,
+    "x": 0,
+    "y": 0
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "DOWN",
+         "color": "red"
         }
+       }
       },
-      "targets": [
-        { "refId": "A", "expr": "wafer_deploy_up",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 2,
-      "type": "stat",
-      "title": "Maps predicted (total)",
-      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" },
-        "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] } } },
-      "targets": [
-        { "refId": "A", "expr": "sum(wafer_deploy_maps_predicted_total)",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 3,
-      "type": "stat",
-      "title": "Predict latency p99 (5m)",
-      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "thresholds" },
-        "thresholds": { "mode": "absolute", "steps": [
-          { "color": "green", "value": null }, { "color": "orange", "value": 0.5 },
-          { "color": "red", "value": 1 } ] } } },
-      "targets": [
-        { "refId": "A",
-          "expr": "histogram_quantile(0.99, sum(rate(wafer_deploy_predict_latency_seconds_bucket[5m])) by (le))",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 4,
-      "type": "timeseries",
-      "title": "Request rate by endpoint (1m)",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "unit": "reqps",
-        "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
-      "targets": [
-        { "refId": "A",
-          "expr": "sum(rate(wafer_deploy_requests_total[1m])) by (endpoint)",
-          "legendFormat": "{{endpoint}}",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 5,
-      "type": "timeseries",
-      "title": "Predict latency p50 / p99 (5m)",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "unit": "s",
-        "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
-      "targets": [
-        { "refId": "A",
-          "expr": "histogram_quantile(0.50, sum(rate(wafer_deploy_predict_latency_seconds_bucket[5m])) by (le))",
-          "legendFormat": "p50",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } },
-        { "refId": "B",
-          "expr": "histogram_quantile(0.99, sum(rate(wafer_deploy_predict_latency_seconds_bucket[5m])) by (le))",
-          "legendFormat": "p99",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 6,
-      "type": "timeseries",
-      "title": "Predicted-label rate (5m) — seed of the Phase 1 prediction-drift monitor",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short",
-        "custom": { "drawStyle": "line", "fillOpacity": 5, "stacking": { "mode": "none" } } } },
-      "targets": [
-        { "refId": "A",
-          "expr": "rate(wafer_deploy_predicted_labels_total[5m])",
-          "legendFormat": "{{label}}",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 7,
-      "type": "row",
-      "title": "Phase 1 — unsupervised drift monitors",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 }
-    },
-    {
-      "id": 8,
-      "type": "stat",
-      "title": "Covariate drift alarm",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 21 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            { "type": "value", "options": { "0": { "text": "OK", "color": "green" } } },
-            { "type": "value", "options": { "1": { "text": "DRIFT", "color": "red" } } }
-          ],
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
+      {
+       "type": "value",
+       "options": {
+        "1": {
+         "text": "UP",
+         "color": "green"
         }
-      },
-      "targets": [
-        { "refId": "A", "expr": "wafer_deploy_covariate_drift_alarm",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
+       }
+      }
+     ],
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
       ]
-    },
-    {
-      "id": 9,
-      "type": "stat",
-      "title": "Prediction drift alarm",
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 21 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            { "type": "value", "options": { "0": { "text": "OK", "color": "green" } } },
-            { "type": "value", "options": { "1": { "text": "DRIFT", "color": "red" } } }
-          ],
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
-        }
-      },
-      "targets": [
-        { "refId": "A", "expr": "wafer_deploy_prediction_drift_alarm",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 10,
-      "type": "stat",
-      "title": "Covariate alarm rate (all windows)",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 21 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1,
-        "color": { "mode": "thresholds" },
-        "thresholds": { "mode": "absolute", "steps": [
-          { "color": "green", "value": null }, { "color": "orange", "value": 0.05 },
-          { "color": "red", "value": 0.2 } ] } } },
-      "targets": [
-        { "refId": "A",
-          "expr": "sum(wafer_deploy_drift_alarms_total{monitor=\"covariate\"}) / clamp_min(sum(wafer_deploy_drift_windows_total{monitor=\"covariate\"}), 1)",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 11,
-      "type": "stat",
-      "title": "Windows evaluated",
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 21 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" },
-        "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] } } },
-      "targets": [
-        { "refId": "A", "expr": "sum(wafer_deploy_drift_windows_total) by (monitor)",
-          "legendFormat": "{{monitor}}",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 12,
-      "type": "timeseries",
-      "title": "Covariate MMD² vs calibrated threshold",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 25 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short",
-        "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
-      "targets": [
-        { "refId": "A", "expr": "wafer_deploy_covariate_mmd2",
-          "legendFormat": "MMD²",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } },
-        { "refId": "B", "expr": "wafer_deploy_covariate_mmd2_threshold",
-          "legendFormat": "threshold",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 13,
-      "type": "timeseries",
-      "title": "Prediction PSI vs threshold",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 25 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short",
-        "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
-      "targets": [
-        { "refId": "A", "expr": "wafer_deploy_prediction_psi",
-          "legendFormat": "PSI",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } },
-        { "refId": "B", "expr": "wafer_deploy_prediction_psi_threshold",
-          "legendFormat": "threshold",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 14,
-      "type": "timeseries",
-      "title": "Windowed defect rate",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 33 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1,
-        "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
-      "targets": [
-        { "refId": "A", "expr": "wafer_deploy_prediction_defect_rate",
-          "legendFormat": "windowed defect rate",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 15,
-      "type": "timeseries",
-      "title": "Windowed per-label fire-rate",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 33 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1,
-        "custom": { "drawStyle": "line", "fillOpacity": 5 } } },
-      "targets": [
-        { "refId": "A", "expr": "wafer_deploy_windowed_label_rate",
-          "legendFormat": "{{label}}",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 16,
-      "type": "row",
-      "title": "Phase 2 — calibration decay (delayed labels)",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 41 }
-    },
-    {
-      "id": 17,
-      "type": "stat",
-      "title": "Calibration drift alarm",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 42 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            { "type": "value", "options": { "0": { "text": "OK", "color": "green" } } },
-            { "type": "value", "options": { "1": { "text": "DRIFT", "color": "red" } } }
-          ],
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
-        }
-      },
-      "targets": [
-        { "refId": "A", "expr": "wafer_deploy_calibration_drift_alarm",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 18,
-      "type": "stat",
-      "title": "Calibration alarm rate (all windows)",
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 42 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1,
-        "color": { "mode": "thresholds" },
-        "thresholds": { "mode": "absolute", "steps": [
-          { "color": "green", "value": null }, { "color": "orange", "value": 0.05 },
-          { "color": "red", "value": 0.2 } ] } } },
-      "targets": [
-        { "refId": "A",
-          "expr": "sum(wafer_deploy_drift_alarms_total{monitor=\"calibration\"}) / clamp_min(sum(wafer_deploy_drift_windows_total{monitor=\"calibration\"}), 1)",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 19,
-      "type": "stat",
-      "title": "Calibration windows scored",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 42 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" },
-        "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] } } },
-      "targets": [
-        { "refId": "A", "expr": "sum(wafer_deploy_drift_windows_total{monitor=\"calibration\"})",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 20,
-      "type": "stat",
-      "title": "Predictions awaiting labels",
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 42 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" },
-        "thresholds": { "mode": "absolute", "steps": [ { "color": "purple", "value": null } ] } } },
-      "targets": [
-        { "refId": "A", "expr": "wafer_deploy_calibration_pending_labels",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 21,
-      "type": "timeseries",
-      "title": "Windowed ECE vs threshold vs reference",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 46 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short",
-        "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
-      "targets": [
-        { "refId": "A", "expr": "wafer_deploy_calibration_ece",
-          "legendFormat": "windowed ECE",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } },
-        { "refId": "B", "expr": "wafer_deploy_calibration_ece_threshold",
-          "legendFormat": "alarm threshold",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } },
-        { "refId": "C", "expr": "wafer_deploy_calibration_reference_ece",
-          "legendFormat": "reference ECE",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
-    },
-    {
-      "id": 22,
-      "type": "timeseries",
-      "title": "Per-label ECE (last delayed-label window)",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 46 },
-      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short",
-        "custom": { "drawStyle": "line", "fillOpacity": 5 } } },
-      "targets": [
-        { "refId": "A", "expr": "wafer_deploy_calibration_ece_per_label",
-          "legendFormat": "{{label}}",
-          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
-      ]
+     }
     }
-  ]
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_up",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "type": "stat",
+   "title": "Maps predicted (total)",
+   "gridPos": {
+    "h": 4,
+    "w": 5,
+    "x": 4,
+    "y": 0
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(wafer_deploy_maps_predicted_total)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "type": "stat",
+   "title": "Predict latency p99 (5m)",
+   "gridPos": {
+    "h": 4,
+    "w": 5,
+    "x": 9,
+    "y": 0
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.5
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.99, sum(rate(wafer_deploy_predict_latency_seconds_bucket[5m])) by (le))",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "type": "timeseries",
+   "title": "Request rate by endpoint (1m)",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 10
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(rate(wafer_deploy_requests_total[1m])) by (endpoint)",
+     "legendFormat": "{{endpoint}}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "type": "timeseries",
+   "title": "Predict latency p50 / p99 (5m)",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 10
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "histogram_quantile(0.50, sum(rate(wafer_deploy_predict_latency_seconds_bucket[5m])) by (le))",
+     "legendFormat": "p50",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    },
+    {
+     "refId": "B",
+     "expr": "histogram_quantile(0.99, sum(rate(wafer_deploy_predict_latency_seconds_bucket[5m])) by (le))",
+     "legendFormat": "p99",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "type": "timeseries",
+   "title": "Predicted-label rate (5m) \u2014 seed of the Phase 1 prediction-drift monitor",
+   "gridPos": {
+    "h": 8,
+    "w": 24,
+    "x": 0,
+    "y": 12
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 5,
+      "stacking": {
+       "mode": "none"
+      }
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "rate(wafer_deploy_predicted_labels_total[5m])",
+     "legendFormat": "{{label}}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "type": "row",
+   "title": "Phase 1 \u2014 unsupervised drift monitors",
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 20
+   }
+  },
+  {
+   "id": 8,
+   "type": "stat",
+   "title": "Covariate drift alarm",
+   "gridPos": {
+    "h": 4,
+    "w": 6,
+    "x": 0,
+    "y": 21
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "OK",
+         "color": "green"
+        }
+       }
+      },
+      {
+       "type": "value",
+       "options": {
+        "1": {
+         "text": "DRIFT",
+         "color": "red"
+        }
+       }
+      }
+     ],
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_covariate_drift_alarm",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "type": "stat",
+   "title": "Prediction drift alarm",
+   "gridPos": {
+    "h": 4,
+    "w": 6,
+    "x": 6,
+    "y": 21
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "OK",
+         "color": "green"
+        }
+       }
+      },
+      {
+       "type": "value",
+       "options": {
+        "1": {
+         "text": "DRIFT",
+         "color": "red"
+        }
+       }
+      }
+     ],
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_prediction_drift_alarm",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "type": "stat",
+   "title": "Covariate alarm rate (all windows)",
+   "gridPos": {
+    "h": 4,
+    "w": 6,
+    "x": 12,
+    "y": 21
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "min": 0,
+     "max": 1,
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.05
+       },
+       {
+        "color": "red",
+        "value": 0.2
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(wafer_deploy_drift_alarms_total{monitor=\"covariate\"}) / clamp_min(sum(wafer_deploy_drift_windows_total{monitor=\"covariate\"}), 1)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "type": "stat",
+   "title": "Windows evaluated",
+   "gridPos": {
+    "h": 4,
+    "w": 6,
+    "x": 18,
+    "y": 21
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(wafer_deploy_drift_windows_total) by (monitor)",
+     "legendFormat": "{{monitor}}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 12,
+   "type": "timeseries",
+   "title": "Covariate MMD\u00b2 vs calibrated threshold",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 25
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 10
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_covariate_mmd2",
+     "legendFormat": "MMD\u00b2",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    },
+    {
+     "refId": "B",
+     "expr": "wafer_deploy_covariate_mmd2_threshold",
+     "legendFormat": "threshold",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 13,
+   "type": "timeseries",
+   "title": "Prediction PSI vs threshold",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 25
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 10
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_prediction_psi",
+     "legendFormat": "PSI",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    },
+    {
+     "refId": "B",
+     "expr": "wafer_deploy_prediction_psi_threshold",
+     "legendFormat": "threshold",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 14,
+   "type": "timeseries",
+   "title": "Windowed defect rate",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 33
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "min": 0,
+     "max": 1,
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 10
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_prediction_defect_rate",
+     "legendFormat": "windowed defect rate",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 15,
+   "type": "timeseries",
+   "title": "Windowed per-label fire-rate",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 33
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "min": 0,
+     "max": 1,
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 5
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_windowed_label_rate",
+     "legendFormat": "{{label}}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 16,
+   "type": "row",
+   "title": "Phase 2 \u2014 calibration decay (delayed labels)",
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 41
+   }
+  },
+  {
+   "id": 17,
+   "type": "stat",
+   "title": "Calibration drift alarm",
+   "gridPos": {
+    "h": 4,
+    "w": 6,
+    "x": 0,
+    "y": 42
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "OK",
+         "color": "green"
+        }
+       }
+      },
+      {
+       "type": "value",
+       "options": {
+        "1": {
+         "text": "DRIFT",
+         "color": "red"
+        }
+       }
+      }
+     ],
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_calibration_drift_alarm",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 18,
+   "type": "stat",
+   "title": "Calibration alarm rate (all windows)",
+   "gridPos": {
+    "h": 4,
+    "w": 6,
+    "x": 6,
+    "y": 42
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "min": 0,
+     "max": 1,
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.05
+       },
+       {
+        "color": "red",
+        "value": 0.2
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(wafer_deploy_drift_alarms_total{monitor=\"calibration\"}) / clamp_min(sum(wafer_deploy_drift_windows_total{monitor=\"calibration\"}), 1)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 19,
+   "type": "stat",
+   "title": "Calibration windows scored",
+   "gridPos": {
+    "h": 4,
+    "w": 6,
+    "x": 12,
+    "y": 42
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(wafer_deploy_drift_windows_total{monitor=\"calibration\"})",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 20,
+   "type": "stat",
+   "title": "Predictions awaiting labels",
+   "gridPos": {
+    "h": 4,
+    "w": 6,
+    "x": 18,
+    "y": 42
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "purple",
+        "value": null
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_calibration_pending_labels",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 21,
+   "type": "timeseries",
+   "title": "Windowed ECE vs threshold vs reference",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 46
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 10
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_calibration_ece",
+     "legendFormat": "windowed ECE",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    },
+    {
+     "refId": "B",
+     "expr": "wafer_deploy_calibration_ece_threshold",
+     "legendFormat": "alarm threshold",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    },
+    {
+     "refId": "C",
+     "expr": "wafer_deploy_calibration_reference_ece",
+     "legendFormat": "reference ECE",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 22,
+   "type": "timeseries",
+   "title": "Per-label ECE (last delayed-label window)",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 46
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 5
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_calibration_ece_per_label",
+     "legendFormat": "{{label}}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 23,
+   "type": "row",
+   "title": "Phase 3 \u2014 retrain trigger (combined, hysteresis)",
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 54
+   }
+  },
+  {
+   "id": 24,
+   "type": "stat",
+   "title": "Retrain trigger",
+   "gridPos": {
+    "h": 4,
+    "w": 6,
+    "x": 0,
+    "y": 55
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "OK",
+         "color": "green"
+        }
+       }
+      },
+      {
+       "type": "value",
+       "options": {
+        "1": {
+         "text": "RETRAIN",
+         "color": "red"
+        }
+       }
+      }
+     ],
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_retrain_trigger",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 25,
+   "type": "stat",
+   "title": "Retrain decisions (total)",
+   "gridPos": {
+    "h": 4,
+    "w": 6,
+    "x": 6,
+    "y": 55
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "mappings": [],
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_retrain_triggers_total",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 26,
+   "type": "stat",
+   "title": "Windows evaluated (covariate)",
+   "gridPos": {
+    "h": 4,
+    "w": 6,
+    "x": 12,
+    "y": 55
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "mappings": [],
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_drift_windows_total{monitor=\"covariate\"}",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 27,
+   "type": "stat",
+   "title": "Total alarms (all monitors)",
+   "gridPos": {
+    "h": 4,
+    "w": 6,
+    "x": 18,
+    "y": 55
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "mappings": [],
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(wafer_deploy_drift_alarms_total)",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 28,
+   "type": "timeseries",
+   "title": "Retrain trigger (latched) \u2014 which channel is contributing",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 59
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 10
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_retrain_trigger",
+     "legendFormat": "trigger latched",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    },
+    {
+     "refId": "B",
+     "expr": "wafer_deploy_retrain_trigger_reason{channel=\"covariate\"}",
+     "legendFormat": "covariate",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    },
+    {
+     "refId": "C",
+     "expr": "wafer_deploy_retrain_trigger_reason{channel=\"prediction\"}",
+     "legendFormat": "prediction",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    },
+    {
+     "refId": "D",
+     "expr": "wafer_deploy_retrain_trigger_reason{channel=\"calibration\"}",
+     "legendFormat": "calibration",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  },
+  {
+   "id": 29,
+   "type": "timeseries",
+   "title": "Monitor alarm counts by channel",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 59
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "wafer-prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "drawStyle": "line",
+      "fillOpacity": 10
+     }
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "wafer_deploy_drift_alarms_total{monitor=\"covariate\"}",
+     "legendFormat": "covariate",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    },
+    {
+     "refId": "B",
+     "expr": "wafer_deploy_drift_alarms_total{monitor=\"prediction\"}",
+     "legendFormat": "prediction",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    },
+    {
+     "refId": "C",
+     "expr": "wafer_deploy_drift_alarms_total{monitor=\"calibration\"}",
+     "legendFormat": "calibration",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "wafer-prometheus"
+     }
+    }
+   ]
+  }
+ ]
 }

@@ -178,3 +178,43 @@ def record_calibration(result) -> None:
     DRIFT_WINDOWS.labels(monitor="calibration").inc()
     if result.alarm:
         DRIFT_ALARMS.labels(monitor="calibration").inc()
+
+
+# --------------------------------------------------------------------------- #
+# Phase 3 retrain trigger — the combined decision, gauges + record helper.
+#
+# The trigger ORs the three monitor channels with hysteresis (see trigger.py).
+# Its clock is the covariate window (the always-available heartbeat, one per
+# window_size maps); the delayed calibration verdict is folded in at its most
+# recent value. RETRAIN_TRIGGER is the latched decision Grafana shows firing.
+# --------------------------------------------------------------------------- #
+
+RETRAIN_TRIGGER = Gauge(
+    "wafer_deploy_retrain_trigger",
+    "1 while the hysteresis retrain trigger is latched (a retrain is warranted)")
+RETRAIN_TRIGGER_REASON = Gauge(
+    "wafer_deploy_retrain_trigger_reason",
+    "1 when this monitor channel is in alarm at the latest trigger evaluation",
+    ["channel"])
+RETRAIN_TRIGGERS_TOTAL = Counter(
+    "wafer_deploy_retrain_triggers_total",
+    "Rising edges of the retrain trigger (distinct retrain decisions)")
+
+
+def init_trigger_gauges() -> None:
+    """Zero the trigger gauges so the panel renders before any window lands."""
+    from wafer_deploy.trigger import CHANNELS
+    RETRAIN_TRIGGER.set(0)
+    for c in CHANNELS:
+        RETRAIN_TRIGGER_REASON.labels(channel=c).set(0)
+
+
+def record_trigger(result) -> None:
+    """Reflect one TriggerResult onto the trigger gauges + edge counter."""
+    from wafer_deploy.trigger import CHANNELS
+    RETRAIN_TRIGGER.set(1 if result.fired else 0)
+    active = set(result.active_reasons)
+    for c in CHANNELS:
+        RETRAIN_TRIGGER_REASON.labels(channel=c).set(1 if c in active else 0)
+    if result.just_fired:
+        RETRAIN_TRIGGERS_TOTAL.inc()

@@ -181,12 +181,28 @@ class CalibrationMonitor:
         return float(np.quantile(stats, self.ece_quantile))
 
     def _score(self) -> CalibrationDriftResult:
-        P = np.asarray(self._win_probs, dtype=np.float64)
-        Y = np.asarray(self._win_labels, dtype=np.float64)
+        result = self.score_window(self._win_probs, self._win_labels,
+                                   window_id=self._window_id)
+        self._window_id += 1
+        return result
+
+    def score_window(self, probs: np.ndarray, y_true: np.ndarray,
+                     window_id: int = -1) -> CalibrationDriftResult:
+        """Score an explicit (probs, y_true) window against the reference.
+
+        The delayed-label path (``buffer_predictions`` / ``add_labels``) is the
+        online contract, where a window's labels dribble in FIFO. Offline — the
+        Phase 3 scored sweep, where every window's labels are already in hand —
+        this scores a fully-assembled window directly, using the *same* frozen
+        reference ECE and calibrated threshold, so an offline ECE alarm and an
+        online one are the identical measurement.
+        """
+        P = np.asarray(probs, dtype=np.float64)
+        Y = np.asarray(y_true, dtype=np.float64)
         ece_pl = per_label_ece(P, Y, self.n_bins)
         ece_mean = float(ece_pl.mean())
-        result = CalibrationDriftResult(
-            window_id=self._window_id,
+        return CalibrationDriftResult(
+            window_id=window_id,
             ece_mean=ece_mean,
             ece_per_label={self.labels[i]: float(ece_pl[i])
                            for i in range(len(self.labels))},
@@ -195,8 +211,6 @@ class CalibrationMonitor:
             threshold=self.threshold,
             alarm=ece_mean > self.threshold,
             n=len(P))
-        self._window_id += 1
-        return result
 
     # ---- public API --------------------------------------------------------
 
