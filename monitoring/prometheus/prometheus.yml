@@ -1,0 +1,13 @@
+# Prometheus scrape config for the wafer-deploy service.
+# A short interval keeps drift panels responsive when replaying a stream.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: wafer-deploy
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["service:8000"]
+        labels:
+          service: wafer-deploy

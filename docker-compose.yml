@@ -1,0 +1,57 @@
+# docker-compose.yml — the whole board from a fresh clone, on CPU.
+#
+#   docker compose up          # service + Prometheus + Grafana
+#   # then POST a map:
+#   python scripts/send_sample.py            (or curl, see README)
+#   # Grafana:    http://localhost:3000   (anonymous, no login)
+#   # Prometheus: http://localhost:9090
+#   # Service:    http://localhost:8000/healthz
+#
+# The 45 MB checkpoint is NOT in this repo; it is bind-mounted read-only from a
+# sibling wafer-mixed checkout. Point WAFER_MIXED_HOST_PATH at it if it is not
+# at ../wafer-mixed. If the mount is absent the service still starts (degraded)
+# so Prometheus + Grafana come up regardless — the reference snapshot committed
+# under reference/ is what the monitors compare against.
+
+services:
+  service:
+    build: .
+    image: wafer-deploy:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      # read-only: the service only reads outputs/{best.pt,thresholds.json}.
+      - "${WAFER_MIXED_HOST_PATH:-../wafer-mixed}:/wafer-mixed:ro"
+    environment:
+      WAFER_MIXED_ROOT: /wafer-mixed
+      WAFER_DEPLOY_DEVICE: cpu
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    depends_on:
+      - service
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      # Quickstart-friendly: anonymous admin, no login form.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_USERS_DEFAULT_THEME: dark
+    depends_on:
+      - prometheus
+    restart: unless-stopped

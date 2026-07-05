@@ -1,0 +1,11 @@
+# Provisioned Prometheus datasource — no manual setup on first boot.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    uid: wafer-prometheus
+    editable: false

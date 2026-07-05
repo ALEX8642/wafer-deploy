@@ -1,0 +1,22 @@
+# Reused model artifacts live in the sibling wafer-mixed checkout, never here.
+*.pt
+*.pth
+
+# Runtime + build
+outputs/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.venv/
+venv/
+*.log
+.DS_Store
+
+# Grafana persists its own state to a named volume; never commit it.
+monitoring/grafana/data/
+
+# The committed reference snapshot lives in reference/ and IS tracked.
+# Everything a drift monitor writes at runtime goes to outputs/ (ignored above).

@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "n": 7603,
+  "embedding_dim": 512,
+  "label_names": [
+    "Center",
+    "Donut",
+    "Edge-Loc",
+    "Edge-Ring",
+    "Loc",
+    "Near-full",
+    "Scratch",
+    "Random"
+  ],
+  "source": "wafer-mixed test split",
+  "checkpoint": {
+    "epoch": 7,
+    "val_macro_f1": 0.9905552553687051,
+    "arch": "resnet18",
+    "input_size": 224,
+    "embedding_dim": 512
+  },
+  "content_hash": "0c03cb9a9f413b3f1609dffcd538e2934f0eeeaf76d52fc9ef3d5b38318384b6",
+  "summary": {
+    "prediction_rate": {
+      "Center": 0.3419702748914902,
+      "Donut": 0.3156648691306063,
+      "Edge-Loc": 0.3367091937393134,
+      "Edge-Ring": 0.3185584637643036,
+      "Loc": 0.4717874523214521,
+      "Near-full": 0.004471918979350256,
+      "Scratch": 0.4925687228725503,
+      "Random": 0.02288570301196896
+    },
+    "label_histogram": {
+      "Center": 2600,
+      "Donut": 2400,
+      "Edge-Loc": 2560,
+      "Edge-Ring": 2422,
+      "Loc": 3587,
+      "Near-full": 34,
+      "Scratch": 3745,
+      "Random": 174
+    },
+    "defect_rate": 0.9733000131527029,
+    "reference_ece": {
+      "Center": 0.0004934468230568583,
+      "Donut": 3.987924305152992e-13,
+      "Edge-Loc": 0.007352801037120079,
+      "Edge-Ring": 0.0018541251329304885,
+      "Loc": 0.015550925560739256,
+      "Near-full": 0.0006286785410324425,
+      "Scratch": 0.00791691384675976,
+      "Random": 0.0005391835036428864
+    },
+    "reference_ece_mean": 0.00429200930571007
+  }
+}

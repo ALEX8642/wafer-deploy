@@ -1,0 +1,23 @@
+# wafer-deploy runtime — CPU-only serving + drift monitoring.
+#
+# The trained model is NOT vendored here: the service reuses wafer-mixed's OWN
+# modules (model / data / calibrate / metrics) from a sibling checkout, so its
+# runtime deps apply. Pins follow wafer-mixed's requirements.txt. The default
+# PyPI torch wheel on Linux bundles CUDA (~multi-GB); for a lean CPU install:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+torch>=2.7.1,<2.9
+torchvision>=0.22.1,<0.24
+numpy>=2.0
+scipy>=1.11
+scikit-learn>=1.5
+tqdm>=4.66
+pyyaml>=6.0
+# matplotlib is a *transitive* requirement of the reused calibrated path:
+# wafer_mixed.calibrate (scale_probs / binary_ece) imports it at module level.
+# Reusing wafer-mixed's own functions is deliberate (parity), so we inherit it.
+matplotlib>=3.8
+
+# Serving + observability
+fastapi>=0.115
+uvicorn[standard]>=0.30
+prometheus-client>=0.20

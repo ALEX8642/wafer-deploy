@@ -1,0 +1,114 @@
+{
+  "uid": "wafer-deploy-overview",
+  "title": "wafer-deploy — service overview",
+  "tags": ["wafer-deploy"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Service up",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } },
+            { "type": "value", "options": { "1": { "text": "UP", "color": "green" } } }
+          ],
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        }
+      },
+      "targets": [
+        { "refId": "A", "expr": "wafer_deploy_up",
+          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Maps predicted (total)",
+      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] } } },
+      "targets": [
+        { "refId": "A", "expr": "sum(wafer_deploy_maps_predicted_total)",
+          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Predict latency p99 (5m)",
+      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "thresholds" },
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null }, { "color": "orange", "value": 0.5 },
+          { "color": "red", "value": 1 } ] } } },
+      "targets": [
+        { "refId": "A",
+          "expr": "histogram_quantile(0.99, sum(rate(wafer_deploy_predict_latency_seconds_bucket[5m])) by (le))",
+          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Request rate by endpoint (1m)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps",
+        "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "targets": [
+        { "refId": "A",
+          "expr": "sum(rate(wafer_deploy_requests_total[1m])) by (endpoint)",
+          "legendFormat": "{{endpoint}}",
+          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Predict latency p50 / p99 (5m)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s",
+        "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
+      "targets": [
+        { "refId": "A",
+          "expr": "histogram_quantile(0.50, sum(rate(wafer_deploy_predict_latency_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50",
+          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } },
+        { "refId": "B",
+          "expr": "histogram_quantile(0.99, sum(rate(wafer_deploy_predict_latency_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99",
+          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Predicted-label rate (5m) — seed of the Phase 1 prediction-drift monitor",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "wafer-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short",
+        "custom": { "drawStyle": "line", "fillOpacity": 5, "stacking": { "mode": "none" } } } },
+      "targets": [
+        { "refId": "A",
+          "expr": "rate(wafer_deploy_predicted_labels_total[5m])",
+          "legendFormat": "{{label}}",
+          "datasource": { "type": "prometheus", "uid": "wafer-prometheus" } }
+      ]
+    }
+  ]
+}

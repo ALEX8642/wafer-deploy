@@ -1,0 +1,23 @@
+# deploy.yaml — serving + reuse-path configuration.
+#
+# The model, thresholds and calibration are read from a sibling wafer-mixed
+# checkout; nothing from wafer-mixed is copied into this repo. Every path here
+# can be overridden by a WAFER_DEPLOY_* / WAFER_MIXED_ROOT environment variable
+# (env wins), which is how the Docker image is repointed at a bind-mounted
+# artifact directory without rebuilding — see docker-compose.yml.
+
+wafer_mixed_root: ../wafer-mixed        # sibling checkout, relative to repo root
+checkpoint: outputs/best.pt             # relative to wafer_mixed_root
+thresholds: outputs/thresholds.json     # relative to wafer_mixed_root
+calibration: outputs/calibration.json   # relative to wafer_mixed_root
+
+reference_path: reference/reference_snapshot.npz   # committed, repo-relative
+output_dir: outputs                                # runtime scratch (gitignored)
+
+device: cpu          # CPU-only by policy; Phase 4 builds the arm64 GB10 image
+batch_size: 64
+num_workers: 0
+
+host: 0.0.0.0
+port: 8000
+seed: 42
