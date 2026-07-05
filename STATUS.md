@@ -527,18 +527,109 @@ Full narrative + caveats: `docs/EXPERIMENTS.md`. Reproduce:
 
 ---
 
-## Next: Phase 4 — GB10 deploy + real numbers + package
+## Phase 4 — GB10 deploy + real numbers + package ✅ (2026-07-05) ← final
 
-Open with: *"Read `ROADMAP.md` and Phase 4 of `PLAN-wafer-deploy.md`. Implement
-Phase 4 only."*
+The packaging phase: the full README, the GB10 arm64 runbook, the end-to-end
+fresh-clone CPU verification (which caught a real concurrency bug), and the honest
+resume bullet. Everything that can be done off-cluster is done; the **one remaining
+hands-on-GB10 step is the arm64 latency capture**, scripted for a copy-paste.
 
-Ready-made hooks left by Phase 3:
-- **Retrain trigger live** on `/metrics` + a Grafana Phase 3 row; the quickstart's
-  "drive a drift stream → watch the dashboards → see the trigger fire" is wired —
-  Phase 4 just needs to run it through `docker compose` end-to-end (drive a shifted
-  stream via `scripts/replay_stream.py --shift …`, watch `wafer_deploy_retrain_trigger`).
-- **Scored results committed** (`experiments/shift_results.json`, `docs/EXPERIMENTS.md`,
-  `assets/shift_*.png`) — Phase 4's README pulls these numbers, does **not** recompute.
-- **Resume bullet inputs:** covariate MMD² leads all shifts; WM-811K true-label
-  recall 45.6% (real cross-domain drop); no-drift trigger FA = none at intensity 0;
-  detection latency ≤ 2 windows for the strong shifts. Add real GB10 p50/p99 in Phase 4.
+### What was built
+
+- **`scripts/bench_latency.py`** — stdlib-only latency/throughput benchmark against a
+  running service: client-side p50/p95/p99 + achieved throughput + the service's own
+  compute-only `latency_ms`, at a configurable concurrency; records failures instead
+  of dying, writes a JSON capture. The same tool the GB10 runbook uses for both the
+  isolated and co-tenant captures.
+- **`docs/DEPLOY.md`** — the GB10 co-tenant runbook: native arm64 build, polite
+  co-tenant `docker run` (`--cpus/--memory` caps), isolated-vs-co-tenant latency
+  capture (spin LLMs down only for the one isolated baseline), footprint check,
+  teardown, and the table to paste numbers into.
+- **`README.md`** — full rewrite: mission, ASCII architecture diagram (service +
+  three monitors + trigger + Prom/Grafana), scored results **pulled from the phase
+  records (not recomputed)**, figure gallery, real CPU latency table + GB10 runbook
+  pointer, quickstart (compose up → predict → drive a drift stream → watch the trigger
+  fire → dashboards), zero-IP data policy, sibling cross-links.
+- **Profile + roadmap** — `ALEX8642/README.md` moves wafer-deploy from "in progress"
+  into the portfolio table; workspace `ROADMAP.md` marks project 3 done.
+- **Predictor thread-safety fix + regression test** (see below).
+
+### Fresh-clone CPU verification — end-to-end, for real (2026-07-05)
+
+The repo was exported (staged tree via `git checkout-index`, so exactly what will be
+committed — reference snapshot included) to a temp dir and brought up with
+`docker compose up --build`, sibling checkpoint bind-mounted from `../wafer-mixed`:
+
+- **service** healthy, `model_loaded: true`, all monitors + trigger active.
+- **`send_sample.py`** → Edge-Ring on the synthetic map (correct).
+- **`replay_stream.py --n 1200 --shift 0.6`** → covariate 6/6 + prediction 6/6 windows
+  alarmed; **`/healthz` `retrain_triggered: true`**; `wafer_deploy_retrain_trigger = 1`
+  read back **through Prometheus**.
+- **Prometheus** target `wafer-deploy` health=up; **Grafana** healthy, dashboard
+  `wafer-deploy-overview` provisioned.
+- **All 66 tests pass** (`pytest`, ~150 s) — 65 from Phase 3 + the new concurrency test.
+
+### Real numbers (CPU quickstart, x86 docker)
+
+| condition | p50 | p99 | throughput | container mem |
+|---|---|---|---|---|
+| single-request (`bench_latency.py -c 1`, quiet box) | ~34 ms | ~40 ms | ~28 req/s | **565–594 MiB** |
+
+- Container footprint **well under the plan's 1 GB budget** — the clean, quotable
+  number. Single-request p50 ~34 ms (matches Phase-0's in-process 30.6 / 36.4 ms);
+  **box-load sensitive** (rose to ~80 ms p50 under contention), so it is a *reference* —
+  the authoritative p50/p99 come from GB10.
+- **Concurrency serialises** on the one shared CPU model (inference lock); torch
+  intra-op threading means concurrent CPU requests queue rather than speed up
+  (c=8 throughput ≤ c=1). The honest serving statement: **replicate for throughput,
+  don't thread.**
+
+### The bug the load test caught (and fixed)
+
+Running `bench_latency.py --concurrency 8` returned **HTTP 500s**:
+`RuntimeError: embedding hook did not capture features`. The penultimate-feature hook
+writes shared model state (`Predictor._captured`); uvicorn runs sync endpoints in a
+threadpool, so concurrent `/predict` calls raced on that buffer — a 500 at best, or
+**silently one request's embedding read into another's drift-monitor update** at worst
+(the scarier, quiet failure). Fixed with an **inference lock** in `predictor.py` around
+the forward + capture read (encoding stays outside the critical section). Re-ran the
+load test: **1500 requests at c=8, 0 failed.** Pinned by `tests/test_concurrency.py`
+(hammers `predict_one` from 8 threads, asserts preds **and** embeddings match the
+serial reference — the swap guard). This is exactly why the docker load run is
+load-bearing: the single-request TestClient path could not have surfaced it.
+
+### GB10 arm64 — the one remaining Alex step (hands-on-cluster)
+
+Not captured here (this session is on the x86 box; no GB10 access). Fully scripted:
+`docs/DEPLOY.md` → build arm64 → co-tenant `docker run` → `bench_latency.py` for
+isolated + co-tenant p50/p99/throughput/mem → paste into the README table + the resume
+bullet below. Consistent with the standing protocol (hardware runs happen in Alex's
+terminal; Claude brings back metrics).
+
+### Accept-criteria status
+
+| Criterion | Status |
+|---|---|
+| Quickstart works from a fresh clone (docker-compose, CPU) | ✅ verified end-to-end in a temp export |
+| GB10 numbers captured | ⏳ **runbook + bench ready; arm64 capture is on Alex** (no GB10 access from this box) |
+| Cross-links live | ✅ README ↔ 4 siblings; ALEX8642 table updated |
+| Resume bullet in STATUS | ✅ below |
+| `/code-review` (medium) pre-commit | ✅ run before commit |
+| Pushed | ⏳ committed locally; **push is on Alex** (auto-mode blocks pushes) |
+
+### Resume bullet (honest numbers)
+
+> **Shipped a wafer-defect model as a monitored inference service** (FastAPI + Docker,
+> self-contained Prometheus/Grafana): an unsupervised-first drift stack — embedding-MMD²,
+> prediction-PSI, and delayed-label calibration-ECE — feeding a hysteresis retrain
+> trigger. Scored on a synthetic corruption sweep and a **real WM-811K→MixedWM38
+> cross-domain shift** (served-model recall drops to **45.6 %**, caught unsupervised at
+> **85–100× the MMD² threshold** before any label arrives); no-drift false-alarm 0–3.2 %
+> per monitor, **trigger silent at zero drift**. Fresh-clone `docker compose up`
+> reproduces the board on CPU (~34 ms p50, <600 MB); a concurrency load test caught and
+> fixed a predictor thread-safety bug. _[+ GB10 arm64 co-tenant p50/p99 once captured.]_
+
+---
+
+**wafer-deploy complete — all 5 phases shipped.** Push (this repo + `ALEX8642`) and the
+GB10 arm64 latency capture are the two hands-on steps left for Alex.

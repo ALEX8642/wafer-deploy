@@ -14,6 +14,7 @@ here — once, at the single inference site — is why the hook lives in Phase 0
 from __future__ import annotations
 
 import dataclasses
+import threading
 from pathlib import Path
 from typing import Sequence
 
@@ -59,7 +60,14 @@ class Predictor:
 
         # Penultimate-feature hook: the final Linear's input is the pooled
         # backbone embedding (512-d for resnet18, 2048-d for resnet50).
+        # `_captured` is shared model state written by the hook, so the
+        # forward + read must be atomic: uvicorn runs sync endpoints in a
+        # threadpool, and without this lock concurrent /predict calls race on
+        # the buffer (500s, or — worse — one request silently reading another's
+        # embedding into the drift monitor). A single CPU model serialises
+        # inference here; throughput scales by replicas, not threads.
         self._captured: torch.Tensor | None = None
+        self._infer_lock = threading.Lock()
         self.embedding_dim = int(self.model.fc.in_features)
         self.model.fc.register_forward_pre_hook(self._capture_embedding)
 
@@ -87,11 +95,15 @@ class Predictor:
         if len(maps) == 0:
             raise ValueError("predict_batch received an empty batch")
         batch = torch.stack([self.encode(m) for m in maps]).to(self.mixed_cfg.device)
-        self._captured = None
-        logits = self.model(batch).float().cpu().numpy()
-        if self._captured is None:  # hook must have fired
-            raise RuntimeError("embedding hook did not capture features")
-        embeddings = self._captured.float().cpu().numpy()
+        # Hold the lock across the forward + capture read so the hook's shared
+        # buffer belongs to exactly this call (see __init__). Encoding above is
+        # pure/thread-safe and stays outside the critical section.
+        with self._infer_lock:
+            self._captured = None
+            logits = self.model(batch).float().cpu().numpy()
+            if self._captured is None:  # hook must have fired
+                raise RuntimeError("embedding hook did not capture features")
+            embeddings = self._captured.float().cpu().numpy()
         probs = self.wm.calibrate.scale_probs(logits, self.T)
         preds = self.wm.metrics.predict_multihot(probs, self.tau)
         return PredictionResult(
